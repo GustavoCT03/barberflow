@@ -1,15 +1,15 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
-db.sqlite3
-/media/
-staticfiles/
+# Django
 *.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+db.squlite3-journal
+media
 .env
-.env*
-venv/
 .venv/
+venv/
+ENV/
+.idea/
 .vscode/
-node_modules/
