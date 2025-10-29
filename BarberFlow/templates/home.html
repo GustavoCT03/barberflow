@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Inicio · BarberFlow{% endblock %}
+{% block content %}
+
+<section class="bf-section">
+  <div class="bf-container">
+    <ul class="bf-card-grid">
+      <li class="bf-card">
+        <div class="bf-card__content">
+          <h2 class="bf-h2">Menos no-shows</h2>
+          <p>Confirmación obligatoria T-2h por correo/SMS con enlace directo para confirmar o cancelar.</p>
+        </div>
+        <div class="bf-card__icon" aria-hidden="true">
+          <!-- check -->
+          <svg viewBox="0 0 24 24" class="bf-icon"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
+      </li>
+      <li class="bf-card">
+        <div class="bf-card__content">
+          <h2 class="bf-h2">Lista de espera 15′</h2>
+          <p>Cuando se libera un cupo, ofertamos por 15 minutos. Aceptas con 1 clic.</p>
+        </div>
+        <div class="bf-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="bf-icon"><path d="M12 8v4l3 3M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
+      </li>
+      <li class="bf-card">
+        <div class="bf-card__content">
+          <h2 class="bf-h2">Reasignación por ausencia</h2>
+          <p>Si el barbero falta, te mantenemos la misma franja con otro barbero disponible.</p>
+        </div>
+        <div class="bf-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="bf-icon"><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
+      </li>
+      <li class="bf-card">
+        <div class="bf-card__content">
+          <h2 class="bf-h2">Registro mínimo</h2>
+          <p>Solo nombre y correo. Enlaces firmados para cada acción, cero fricción.</p>
+        </div>
+        <div class="bf-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="bf-icon"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm7 9a7 7 0 0 0-14 0" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="bf-section bf-section--alt">
+  <div class="bf-container bf-sbs">
+    <div class="bf-sbs__content">
+      <span class="bf-topper">Cómo funciona</span>
+      <h2 class="bf-title">Agenda web para barberías — simple y efectiva</h2>
+      <p>Reservas en 3 pasos, confirmación T-2h, lista de espera inteligente y paneles de ocupación/no-show.</p>
+      <p>Roles separados para cliente, barbero, administrador de la barbería y licenciante (nosotros).</p>
+      <div class="bf-actions">
+        <a class="bf-btn" href="{% url 'auth:signup' %}">Crear cuenta</a>
+        <a class="bf-btn bf-btn--ghost" href="{% url 'auth:login' %}">Ingresar</a>
+      </div>
+    </div>
+    <div class="bf-sbs__panel">
+      <ul class="bf-stats">
+        <li><span class="bf-stat__num">-10% a -20%</span><span class="bf-stat__desc">no-shows</span></li>
+        <li><span class="bf-stat__num">15′</span><span class="bf-stat__desc">ventana de ofertas</span></li>
+        <li><span class="bf-stat__num">4</span><span class="bf-stat__desc">roles con vistas simples</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,56 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}BarberFlow{% endblock %}</title>
+
+  <!-- Fuentes recomendadas (Google Fonts, del listado de design-resources) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Inter para UI y Playfair Display para títulos -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{% static 'css/bf.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bf-body">
+
+  <header class="bf-header">
+    <div class="bf-container bf-header__inner">
+      <a class="bf-logo" href="{% url 'home' %}">Barber<span>Flow</span></a>
+
+      <nav class="bf-nav">
+        {% if user.is_authenticated %}
+          <a href="{% url 'appointments:list' %}">Mis reservas</a>
+          <a href="{% url 'auth:logout' %}">Salir</a>
+        {% else %}
+          <a href="{% url 'auth:login' %}">Ingresar</a>
+          <a class="bf-btn bf-btn--ghost" href="{% url 'auth:signup' %}">Crear cuenta</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  {% if messages %}
+    <section class="bf-messages bf-container">
+      {% for message in messages %}
+        <div class="bf-alert">{{ message }}</div>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <main class="bf-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="bf-footer">
+    <div class="bf-container bf-footer__inner">
+      <p>© {{ now|date:"Y" }} BarberFlow</p>
+      <p class="bf-muted">Agenda web con confirmación T-2h, lista de espera 15′ y reasignación por ausencia.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

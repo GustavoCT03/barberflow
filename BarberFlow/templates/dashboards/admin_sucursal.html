@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Administración de la Barbería · BarberFlow{% endblock %}
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container bf-grid-2">
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Sucursales</h2>
+      <a class="bf-btn" href="{% url 'shops:sucursal_new' %}">Crear sucursal</a>
+      <ul class="bf-list">
+        {% for s in sucursales %}
+          <li class="bf-list__item">
+            <div><strong>{{ s.nombre }}</strong> — {{ s.direccion }}</div>
+            <div class="bf-list__actions">
+              <a class="bf-link" href="{% url 'shops:sucursal_edit' s.id %}">Editar</a>
+              <a class="bf-link bf-link--danger" href="{% url 'shops:sucursal_delete' s.id %}">Eliminar</a>
+            </div>
+          </li>
+        {% empty %}
+          <li class="bf-empty">Sin sucursales creadas.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Invitar barbero</h2>
+      <form class="bf-form" method="post" action="{% url 'shops:invitar_barbero' %}">
+        {% csrf_token %}
+        <label>Correo del barbero</label>
+        <input type="email" name="email" placeholder="barbero@ejemplo.com" required>
+        <label>Sucursal</label>
+        <select name="sucursal_id">
+          {% for s in sucursales %}<option value="{{ s.id }}">{{ s.nombre }}</option>{% endfor %}
+        </select>
+        <button class="bf-btn" type="submit">Enviar invitación</button>
+      </form>
+      <p class="bf-muted">El barbero recibe un <strong>enlace firmado</strong> para registrarse directamente como barbero en esa sucursal.</p>
+    </div>
+
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Servicios</h2>
+      <a class="bf-btn" href="{% url 'shops:servicio_new' %}">Crear servicio</a>
+      <ul class="bf-list">
+        {% for srv in servicios %}
+          <li class="bf-list__item">
+            <div>{{ srv.nombre }} — {{ srv.duracion_min }} min · ${{ srv.precio }}</div>
+            <div class="bf-list__actions">
+              <a class="bf-link" href="{% url 'shops:servicio_edit' srv.id %}">Editar</a>
+              <a class="bf-link bf-link--danger" href="{% url 'shops:servicio_delete' srv.id %}">Eliminar</a>
+            </div>
+          </li>
+        {% empty %}
+          <li class="bf-empty">Agrega tus servicios iniciales.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Métricas</h2>
+      <ul class="bf-kpis">
+        <li><span class="bf-kpi__num">{{ kpi.ocupacion }}%</span><span class="bf-kpi__desc">Ocupación</span></li>
+        <li><span class="bf-kpi__num">{{ kpi.no_shows }}</span><span class="bf-kpi__desc">No-shows</span></li>
+        <li><span class="bf-kpi__num">{{ kpi.conversion_15 }}%</span><span class="bf-kpi__desc">Conversión 15′</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

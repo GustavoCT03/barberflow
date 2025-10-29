@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Mi Agenda · BarberFlow{% endblock %}
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container bf-grid-2">
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Próximas citas</h2>
+      <ul class="bf-list">
+        {% for a in appointments %}
+          <li class="bf-list__item">
+            <div>
+              <strong>{{ a.fecha|date:"d/m" }} · {{ a.hora }}</strong> — {{ a.servicio.nombre }} ({{ a.sucursal.nombre }}) · <span class="bf-muted">{{ a.barbero.nombre }}</span>
+            </div>
+            <div class="bf-list__actions">
+              <a class="bf-link" href="{{ a.enlace_confirmar }}">Confirmar</a>
+              <a class="bf-link bf-link--danger" href="{{ a.enlace_cancelar }}">Cancelar</a>
+            </div>
+          </li>
+        {% empty %}
+          <li class="bf-empty">No tienes citas próximas.</li>
+        {% endfor %}
+      </ul>
+      <a class="bf-btn" href="{% url 'appointments:new' %}">Reservar nueva hora</a>
+    </div>
+
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Ofertas por cupos liberados</h2>
+      <ul class="bf-list">
+        {% for o in ofertas15 %}
+          <li class="bf-list__item">
+            <div>
+              <strong>{{ o.servicio.nombre }}</strong> — vence en <span data-countdown="{{ o.expira_iso }}">{{ o.expira_humano }}</span>
+            </div>
+            <div class="bf-list__actions">
+              <a class="bf-link" href="{{ o.enlace_aceptar }}">Tomar</a>
+              <a class="bf-link bf-link--muted" href="{{ o.enlace_rechazar }}">Pasar</a>
+            </div>
+          </li>
+        {% empty %}
+          <li class="bf-empty">Sin ofertas por ahora.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

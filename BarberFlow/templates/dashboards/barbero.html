@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Mi Agenda (Barbero) · BarberFlow{% endblock %}
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container bf-grid-2">
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Hoy</h2>
+      <ul class="bf-list bf-list--big-actions">
+        {% for c in citas_hoy %}
+          <li class="bf-list__item">
+            <div>
+              <strong>{{ c.hora }}</strong> · {{ c.servicio.nombre }} — <span class="bf-muted">{{ c.cliente.nombre }}</span>
+            </div>
+            <div class="bf-list__actions">
+              <a class="bf-chip" href="{{ c.enlace_asistencia }}">Asistió</a>
+              <a class="bf-chip bf-chip--muted" href="{{ c.enlace_noasistio }}">No asistió</a>
+              <a class="bf-chip bf-chip--warn" href="{{ c.enlace_fin_anticipado }}">Fin anticipado</a>
+              <a class="bf-chip bf-chip--danger" href="{{ c.enlace_cancelar_barbero }}">Cancelar</a>
+            </div>
+          </li>
+        {% empty %}
+          <li class="bf-empty">Sin citas para hoy.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Mis estadísticas (semana)</h2>
+      <ul class="bf-kpis">
+        <li><span class="bf-kpi__num">{{ kpi.ocupacion }}%</span><span class="bf-kpi__desc">Ocupación</span></li>
+        <li><span class="bf-kpi__num">{{ kpi.no_shows }}</span><span class="bf-kpi__desc">No-shows</span></li>
+        <li><span class="bf-kpi__num">{{ kpi.citas }}</span><span class="bf-kpi__desc">Citas</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -5,7 +5,7 @@ from core.models import Perfil
 
 User = get_user_model()
 
-def crear_perfil(sender, isntance, created, **kwargs):
+def crear_perfil(sender, instance, created, **kwargs):
     if created:
         Perfil.objects.create(user=instance)
         
