@@ -130,3 +130,21 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "America/Santiago"
+
+
+
+
+
+
+AUTH_USER_MODEL = "core.User"
+
+# Login por email y “recordarme”
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30   # 30 días
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # no cerrar al cerrar navegador
+
+LOGIN_REDIRECT_URL = "router:post_login"  # vista que redirige según rol
+LOGOUT_REDIRECT_URL = "home"
+
+# Email (para notificaciones); en dev usa consola:
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# en prod configura SMTP real

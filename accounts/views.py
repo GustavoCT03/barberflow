@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.conf import settings
 from .forms import RegistroClienteForm, LoginForm
-from core.models import Perfil, Nosotros, Cliente, Barbero, InvitacionBarbero
+from core.models import Perfil, Nosotros, Cliente, Barbero, InvitacionBarbero, User 
 
 
 # Create your views here.
@@ -89,3 +89,16 @@ def registro_barbero_por_token(request, token):
     
 
     
+@login_required
+def post_login_router(request):
+    rol = request.user.rol
+    if rol == User.Roles.CLIENTE:
+        return redirect("dashboard:cliente")
+    if rol == User.Roles.BARBERO:
+        return redirect("dashboard:barbero")
+    if rol == User.Roles.ADMIN_BARBERIA:
+        return redirect("dashboards:admin_sucursal")
+    if rol == User.Roles.SUPERADMIN:
+        return redirect("dashboard:superadmin")
+    messages.error(request, "Rol de usuario no reconocido.")
+    return redirect("login")
