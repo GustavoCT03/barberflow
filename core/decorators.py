@@ -5,7 +5,7 @@ from core.models import Perfil
 
 def rol_requerido(rol):
     def _decorator(view_func):
-        @wraps(view_func):
+        @wraps(view_func)
         def _wrapped(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return redirect("login")

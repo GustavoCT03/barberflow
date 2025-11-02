@@ -16,7 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from accounts.views import login_view, logout_view, registro_cliente, route_by_role, registro_barbero_por_token
+from accounts.views import (
+    login_view, 
+    logout_view, 
+    registro_cliente, 
+    route_by_role,  # Updated name
+    registro_barbero_por_token
+)
+
 from dashboard.views import (
     panel_licencias, panel_admin_barberia, panel_barbero, panel_cliente,
     sucursal_crear, sucursal_editar, sucursal_eliminar, crear_invitacion_barbero
@@ -32,7 +39,7 @@ urlpatterns = [
     path('registro/barbero/<uuid:token>/', registro_barbero_por_token, name='registro_barbero'),
 
     # para la wea de rol#
-    path('', route_by_role, name='route_by_role'),
+    path('route/', route_by_role, name='route_by_role'),
 
     # Los paneles #
     path('panel/licencias/', panel_licencias, name='panel_licencias'),

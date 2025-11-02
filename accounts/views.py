@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.conf import settings
 from .forms import RegistroClienteForm, LoginForm
-from core.models import Perfil, Nosotros, Cliente, Barbero, InvitacionBarbero, User 
+from core.models import Perfil, Nosotros, Cliente, Barbero, InvitacionBarbero, User
 
 
 # Create your views here.
@@ -44,15 +44,17 @@ def registro_cliente(request):
             login(request, user)
         return redirect("route_by_role")
     return render(request, "accounts/registro_cliente.html", {"form": form})
-def route_by_route(request):
+@login_required  # Add this decorator to ensure user is authenticated
+def route_by_role(request):  # Rename to match urls.py
     rol = request.user.perfil.rol
-    if rol == Perfil.Rol.SUPERADMIN:
+    if rol == Perfil.Rol.SUPERADMIN:  # Case is correct here
         return redirect("panel_licencias")
-    if rol == Perfil.ROL.ADMIN_BARBERIA:
+    if rol == Perfil.Rol.ADMIN_BARBERIA:  # Fix ROL -> Rol
         return redirect("panel_admin_barberia")
-    if rol == Perfil.ROL.BARBERO:
+    if rol == Perfil.Rol.BARBERO:  # Fix ROL -> Rol
         return redirect("panel_barbero")
     return redirect("panel_cliente")
+
 
 from django.utils import timezone
 
