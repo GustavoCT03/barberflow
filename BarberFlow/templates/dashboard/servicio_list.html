@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Servicios - BarberFlow{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Servicios de {{ nosotros.nombre }}</h2>
+        <a href="{% url 'servicio_crear' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nuevo Servicio
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if servicios %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Servicio</th>
+                    <th>Duración</th>
+                    <th>Precio</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for servicio in servicios %}
+                <tr>
+                    <td>
+                        <strong>{{ servicio.nombre }}</strong>
+                        {% if servicio.descripcion %}
+                        <br><small class="text-muted">{{ servicio.descripcion|truncatewords:10 }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ servicio.duracion_minutos }} min</td>
+                    <td>${{ servicio.precio }}</td>
+                    <td>
+                        {% if servicio.activo %}
+                        <span class="badge bg-success">Activo</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'servicio_editar' servicio.id %}" class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil"></i> Editar
+                        </a>
+                        <a href="{% url 'servicio_toggle_activo' servicio.id %}" class="btn btn-sm btn-info">
+                            <i class="bi bi-toggle-{{ servicio.activo|yesno:'off,on' }}"></i>
+                            {{ servicio.activo|yesno:'Desactivar,Activar' }}
+                        </a>
+                        <a href="{% url 'servicio_eliminar' servicio.id %}" class="btn btn-sm btn-danger">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No tienes servicios registrados aún.
+        <a href="{% url 'servicio_crear' %}">Crea el primero aquí</a>.
+    </div>
+    {% endif %}
+
+    <a href="{% url 'panel_admin_barberia' %}" class="btn btn-secondary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al Panel
+    </a>
+</div>
+{% endblock %}

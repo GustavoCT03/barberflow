@@ -9,6 +9,7 @@ from core.models import (
     InvitacionBarbero,
     User,
     Barbero,
+    Servicio,
 )
 from core.decorators import role_required
 from .forms import SucursalCreateForm, SucursalUpdateForm
@@ -62,7 +63,28 @@ def panel_licencias(request):
 @login_required
 @role_required(User.Roles.ADMIN_BARBERIA)
 def panel_admin_barberia(request):
-    return render(request, "dashboard/admin_sucursal.html")
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        messages.error(request, "No se encontró tu barbería asociada.")
+        return redirect("login")
+    
+    sucursales = Sucursal.objects.filter(nosotros=nosotros)
+    servicios = Servicio.objects.filter(nosotros=nosotros, activo=True)[:5]  # Primeros 5 servicios activos
+    
+    # KPIs básicos (placeholder, se completarán en HU20)
+    kpi = {
+        "ocupacion": 0,
+        "no_shows": 0,
+        "conversion_15": 0,
+    }
+    
+    context = {
+        "nosotros": nosotros,
+        "sucursales": sucursales,
+        "servicios": servicios,
+        "kpi": kpi,
+    }
+    return render(request, "dashboard/admin_sucursal.html", context)
 
 
 # Crear sucursal (Admin de barbería) con validación de licencia

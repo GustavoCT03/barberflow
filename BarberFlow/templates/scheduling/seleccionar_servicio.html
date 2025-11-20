@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Seleccionar Servicio{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'scheduling:seleccionar_barberia' %}">Barberías</a></li>
+      <li class="breadcrumb-item">{{ sucursal.barberia.nombre }}</li>
+      <li class="breadcrumb-item active">{{ sucursal.nombre }}</li>
+    </ol>
+  </nav>
+
+  <h2 class="mb-4">Selecciona un Servicio</h2>
+  
+  {% if servicios %}
+    <div class="row g-3">
+      {% for servicio in servicios %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">{{ servicio.nombre }}</h5>
+            <p class="card-text">{{ servicio.descripcion }}</p>
+            <p class="fw-bold text-primary">${{ servicio.precio }}</p>
+            <p class="text-muted small">Duración: {{ servicio.duracion_minutos }} min</p>
+            <a href="{% url 'scheduling:seleccionar_barbero_fecha' sucursal.id servicio.id %}" class="btn btn-primary">Seleccionar</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-warning">No hay servicios disponibles.</div>
+  {% endif %}
+</div>
+{% endblock %}

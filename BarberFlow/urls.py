@@ -15,12 +15,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from accounts.views import (
     login_view, 
     logout_view, 
     registro_cliente, 
-    route_by_role,  # Updated name
+    route_by_role,
     registro_barbero_por_token
 )
 
@@ -31,28 +31,7 @@ from dashboard.views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    #auth#
-    path('login/', login_view, name='login'),
-    path('logout/', logout_view, name='logout'),
-    path('registro/cliente/', registro_cliente, name='registro_cliente'),
-    path('registro/barbero/<uuid:token>/', registro_barbero_por_token, name='registro_barbero'),
-
-    # para la wea de rol#
-    path('route/', route_by_role, name='route_by_role'),
-
-    # Los paneles #
-    path('panel/licencias/', panel_licencias, name='panel_licencias'),
-    path('panel/admin/', panel_admin_barberia, name='panel_admin_barberia'),
-    path('panel/barbero/', panel_barbero, name='panel_barbero'),
-    path('panel/cliente/', panel_cliente, name='panel_cliente'),
-
-    # Las Sucursales #
-    path('panel/admin/sucursales/crear/', sucursal_crear, name='sucursal_crear'),
-    path('panel/admin/sucursales/<int:sucursal_id>/editar/', sucursal_editar, name='sucursal_editar'),
-    path('panel/admin/sucursales/<int:sucursal_id>/eliminar/', sucursal_eliminar, name='sucursal_eliminar'),
-
-    # Las invitaciones para los venecos xddddddd#
-    path('panel/admin/invitaciones/nueva/', crear_invitacion_barbero, name='crear_invitacion_barbero'),
-
+    path('', include('accounts.urls')),
+    path('panel/', include('dashboard.urls')), 
+    path('citas/', include('scheduling.urls')),
 ]

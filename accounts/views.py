@@ -11,12 +11,13 @@ from core.models import  Nosotros, Cliente, Barbero, InvitacionBarbero, User
 # Create your views here.
 
 User = get_user_model()
-
+def home(request):
+    return render(request, "home.html")
 def login_view(request):
     form = LoginForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         email = form.cleaned_data.get("email") or form.cleaned_data.get("username")
-        user = authenticate(request, username=form.cleaned_data["username"], password=form.cleaned_data["password"])
+        user = authenticate(request, username=form.cleaned_data["email"], password=form.cleaned_data["password"])
         if user:
             login(request, user)
             request.session.set_expiry(60 * 60 * 24 * 30 if form.cleaned_data.get("remember_me") else 0)

@@ -62,11 +62,11 @@ ROOT_URLCONF = 'BarberFlow.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # Add this path
+        'DIRS': [BASE_DIR / 'BarberFlow' / 'templates'],  # <-- Cambiado aquí
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.debug',  # Add this
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -127,9 +127,6 @@ STATICFILES_DIRS = [
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 # Celery Configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
@@ -146,18 +143,16 @@ CACHES = {
     }
 }
 
-
-
-
+# Custom User Model
 AUTH_USER_MODEL = "core.User"
 
-# Login por email y “recordarme”
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 30   # 30 días
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # no cerrar al cerrar navegador
+# Authentication Settings
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
-LOGIN_REDIRECT_URL = "router:post_login"  # vista que redirige según rol
-LOGOUT_REDIRECT_URL = "home"
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/route/'
+LOGOUT_REDIRECT_URL = '/login/'
 
 # Email (para notificaciones); en dev usa consola:
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-# en prod configura SMTP real

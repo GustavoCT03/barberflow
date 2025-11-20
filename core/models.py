@@ -89,11 +89,28 @@ class Nosotros(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.nombre  
-    
+        return self.nombre
+
+class Barberia(models.Model):
+    """
+    Representa una barbería que tiene licencia activa.
+    Un Nosotros puede tener múltiples barberías (según su plan).
+    """
+    nosotros = models.ForeignKey(Nosotros, on_delete=models.CASCADE, related_name="barberias")
+    nombre = models.CharField("Nombre de la barbería", max_length=150)
+    descripcion = models.TextField("Descripción", blank=True)
+    activa = models.BooleanField(default=True)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Barbería"
+        verbose_name_plural = "Barberías"
+
+    def __str__(self):
+        return f"{self.nombre} ({self.nosotros.nombre})"
 
 class Sucursal(models.Model):
-    nosotros = models.ForeignKey(Nosotros, on_delete=models.CASCADE)
+    barberia = models.ForeignKey(Barberia, on_delete=models.CASCADE, related_name="sucursales")
     nombre = models.CharField(max_length=150)
     direccion = models.CharField(max_length=200, blank=True)
     telefono = models.CharField(max_length=30, blank=True)
@@ -101,7 +118,7 @@ class Sucursal(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.nombre} ({self.nosotros.nombre})"
+        return f"{self.nombre} ({self.barberia.nombre})"
 class Barbero(models.Model):
     nosotros = models.ForeignKey(Nosotros, on_delete=models.CASCADE)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -130,9 +147,10 @@ class InvitacionBarbero(models.Model):
 
 
     
+
+
 class Servicio(models.Model):
-    """ aca es para q los wns elijan q wea van a hacerse como x ejemplo corte , barba o las dos weas  con trato de polola xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"""
-    nosotros = models.ForeignKey(Nosotros, on_delete=models.CASCADE, related_name="servicios")
+    barberia = models.ForeignKey(Barberia, on_delete=models.CASCADE, related_name="servicios")
     nombre = models.CharField("Nombre del servicio", max_length=100)
     descripcion = models.TextField("Descripción", blank=True)
     duracion_minutos = models.PositiveIntegerField("Duración (min)", default=30)
@@ -143,10 +161,13 @@ class Servicio(models.Model):
 
     class Meta:
         ordering = ["nombre"]
-        verbose_name = "Sevicio"
+        verbose_name = "Servicio"
         verbose_name_plural = "Servicios"
+    
     def __str__(self):
         return f"{self.nombre} - ${self.precio} ({self.duracion_minutos} min)"
+
+
     
 class HorarioDisponibilidad(models.Model):
     """Esta wea es para q los weas de los barberos o veneckers pongan sus horarios disponibles para q los clientes culiaos puedan pedir hora"""
@@ -403,6 +424,3 @@ class LogActividad(models.Model):
 
 
 
-
-
-    

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Seleccionar Barbería{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Selecciona una Barbería</h2>
+  
+  {% if barberias %}
+    <div class="row g-3">
+      {% for barberia in barberias %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">{{ barberia.nombre }}</h5>
+            <p class="card-text text-muted">{{ barberia.sucursales.count }} sucursal(es)</p>
+            <a href="{% url 'scheduling:seleccionar_sucursal' barberia.id %}" class="btn btn-primary">Continuar</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">No hay barberías disponibles en este momento.</div>
+  {% endif %}
+</div>
+{% endblock %}

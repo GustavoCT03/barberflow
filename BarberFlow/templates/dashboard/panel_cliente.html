@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Panel del Cliente - BarberFlow{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Bienvenido, {{ request.user.nombre }}</h2>
+    <p class="text-muted">Panel de control para clientes</p>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Mis Citas</h5>
+                    <p class="card-text">Ver y gestionar tus citas programadas</p>
+                    <a href="{% url 'scheduling:mis_citas' %}" class="btn btn-primary">Ver Citas</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Nueva Cita</h5>
+                    <p class="card-text">Agenda una nueva cita en tu barbería favorita</p>
+                    <a href="{% url 'scheduling:seleccionar_barberia' %}" class="btn btn-success">Agendar Cita</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

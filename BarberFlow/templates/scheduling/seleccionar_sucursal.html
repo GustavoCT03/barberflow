@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Seleccionar Sucursal{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'scheduling:seleccionar_barberia' %}">Barberías</a></li>
+      <li class="breadcrumb-item active">{{ barberia.nombre }}</li>
+    </ol>
+  </nav>
+
+  <h2 class="mb-4">Selecciona Sucursal - {{ barberia.nombre }}</h2>
+  
+  {% if sucursales %}
+    <div class="row g-3">
+      {% for sucursal in sucursales %}
+      <div class="col-md-6">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">{{ sucursal.nombre }}</h5>
+            <p class="card-text">
+              {{ sucursal.direccion }}<br>
+              {{ sucursal.telefono }}
+            </p>
+            <a href="{% url 'scheduling:seleccionar_servicio' sucursal.id %}" class="btn btn-primary">Continuar</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-warning">Esta barbería no tiene sucursales activas.</div>
+  {% endif %}
+</div>
+{% endblock %}

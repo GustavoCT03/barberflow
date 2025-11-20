@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Panel del Barbero - BarberFlow{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Panel del Barbero</h2>
+    <p class="text-muted">Bienvenido, {{ request.user.nombre }}</p>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Mis Citas de Hoy</h5>
+                    <p class="card-text">Ver las citas programadas para hoy</p>
+                    <a href="#" class="btn btn-primary">Ver Agenda</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Mis Horarios</h5>
+                    <p class="card-text">Gestionar disponibilidad horaria</p>
+                    <a href="#" class="btn btn-success">Configurar Horarios</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
