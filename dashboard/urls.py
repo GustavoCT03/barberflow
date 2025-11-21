@@ -6,11 +6,12 @@ from django.urls import include
 urlpatterns = [
     # Paneles
     path("licencias/", views.panel_licencias, name="panel_licencias"),
-    path("admin/", views.panel_admin_barberia, name="panel_admin_barberia"),
+    path("admin/", views.panel_admin_barberia, name="panel_admin_barberia"),       
     path("barbero/", views.panel_barbero, name="panel_barbero"),
     path("cliente/", views.panel_cliente, name="panel_cliente"),
     
-    
+    # Barbero acciones
+    path("barbero/cita/<int:cita_id>/completar/", views.marcar_cita_completada, name="marcar_completada"),
     # Sucursales
     path("admin/sucursales/crear/", views.sucursal_crear, name="sucursal_crear"),
     path("admin/sucursales/<int:sucursal_id>/editar/", views.sucursal_editar, name="sucursal_editar"),

@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.utils import timezone
+from datetime import datetime, timedelta 
 
 from core.models import (
     Nosotros,
@@ -13,6 +14,8 @@ from core.models import (
 )
 from core.decorators import role_required
 from .forms import SucursalCreateForm, SucursalUpdateForm
+from scheduling.models import Cita  # ← AGREGA ESTA LÍNEA
+from .forms_servicios import ServicioForm
 
 
 # Helper: obtener la barbería (Nosotros) asociada al usuario
@@ -69,7 +72,7 @@ def panel_admin_barberia(request):
         return redirect("login")
     
     sucursales = Sucursal.objects.filter(nosotros=nosotros)
-    servicios = Servicio.objects.filter(nosotros=nosotros, activo=True)[:5]  # Primeros 5 servicios activos
+    servicios = Servicio.objects.filter(barberia__nosotros=nosotros, activo=True)[:5]
     
     # KPIs básicos (placeholder, se completarán en HU20)
     kpi = {
@@ -284,9 +287,53 @@ def barbero_toggle_activo(request, barbero_id):
 
 # Panel barbero
 @login_required
-@role_required(User.Roles.BARBERO)
 def panel_barbero(request):
-    return render(request, "dashboard/panel_barbero.html")
+    """Panel principal del barbero con agenda del día"""
+    try:
+        barbero = Barbero.objects.get(user=request.user)
+    except Barbero.DoesNotExist:
+        messages.error(request, "No tienes un perfil de barbero asignado")
+        return redirect('login')
+    
+    # Obtener fecha seleccionada (hoy por defecto)
+    fecha_str = request.GET.get('fecha', timezone.now().date().isoformat())
+    fecha = datetime.fromisoformat(fecha_str).date()
+    
+    # Citas del día
+    citas_dia = Cita.objects.filter(
+        barbero=barbero,
+        fecha_hora__date=fecha
+    ).select_related('cliente', 'servicio', 'sucursal').order_by('fecha_hora')
+    
+    # Estadísticas del día
+    total_citas = citas_dia.count()
+    completadas = citas_dia.filter(estado='completada').count()
+    pendientes = citas_dia.filter(estado='pendiente').count()
+    
+    context = {
+        'barbero': barbero,
+        'fecha': fecha,
+        'citas_dia': citas_dia,
+        'total_citas': total_citas,
+        'completadas': completadas,
+        'pendientes': pendientes,
+    }
+    
+    return render(request, 'dashboard/panel_barbero.html', context)
+
+@login_required
+def marcar_cita_completada(request, cita_id):
+    """Marcar una cita como completada"""
+    cita = get_object_or_404(Cita, id=cita_id, barbero__user=request.user)
+    
+    if cita.estado == 'pendiente' or cita.estado == 'confirmada':
+        cita.estado = 'completada'
+        cita.save()
+        messages.success(request, f"Cita con {cita.cliente.nombre} marcada como completada")
+    else:
+        messages.warning(request, "Esta cita ya fue procesada")
+    
+    return redirect('panel_barbero')
 
 
 # Panel cliente

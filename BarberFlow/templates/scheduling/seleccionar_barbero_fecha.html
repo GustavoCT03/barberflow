@@ -8,6 +8,7 @@
         .barbero-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; }
         .slot-btn { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
         .slot-btn:hover { background: #0056b3; }
+        .rating { color: #ffc107; font-size: 1.1em; }
     </style>
 </head>
 <body>
@@ -20,27 +21,36 @@
     </form>
 
     <div style="margin-top: 20px;">
-        {% for barbero in barberos %}
+        {% for info in barberos_info %}
             <div class="barbero-card">
-                <h3>{{ barbero.nombre }}</h3>
-                
-                {% if disponibilidad %}
-                    {% for barbero_id, slots in disponibilidad.items %}
-                        {% if barbero_id == barbero.id %}
-                            <h4>Horarios disponibles:</h4>
-                            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                                {% for slot in slots %}
-                                    <form method="post" action="{% url 'scheduling:confirmar_reserva' sucursal.id servicio.id barbero.id %}" style="display: inline;">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="fecha_hora" value="{{ fecha_seleccionada }}T{{ slot|time:'H:i:s' }}">
-                                        <button type="submit" class="slot-btn">{{ slot|time:'H:i' }}</button>
-                                    </form>
-                                {% endfor %}
-                            </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>{{ info.barbero.nombre }}</h3>
+                    <div class="rating">
+                        {% if info.total > 0 %}
+                            ⭐ {{ info.promedio }}/5 ({{ info.total }} valoración{{ info.total|pluralize:"es" }})
+                        {% else %}
+                            <span style="color: #999;">Sin valoraciones</span>
                         {% endif %}
-                    {% endfor %}
+                    </div>
+                </div>
+                
+                {% if info.barbero.id in disponibilidad.keys %}
+                    <h4>Horarios disponibles:</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        {% for slot in info.slots %}
+                            <form method="post" action="{% url 'scheduling:confirmar_reserva' sucursal.id servicio.id info.barbero.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="fecha_hora" value="{{ fecha_seleccionada }}T{{ slot|time:'H:i:s' }}">
+                                <button type="submit" class="slot-btn">{{ slot|time:'H:i' }}</button>
+                            </form>
+                        {% endfor %}
+                    </div>
                 {% else %}
                     <p>No disponible este día</p>
+                    <a class="btn btn-sm btn-outline-secondary"
+                       href="{% url 'scheduling:unirse_waitlist' info.barbero.id servicio.id %}">
+                       Unirse a lista de espera
+                    </a>
                 {% endif %}
             </div>
         {% empty %}

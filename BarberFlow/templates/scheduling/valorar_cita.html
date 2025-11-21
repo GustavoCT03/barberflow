@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Valorar Cita - BarberFlow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 30px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .stars {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .stars input[type="radio"] {
+            display: none;
+        }
+        .stars label {
+            font-size: 2em;
+            cursor: pointer;
+            color: #ddd;
+        }
+        .stars input[type="radio"]:checked ~ label,
+        .stars label:hover,
+        .stars label:hover ~ label {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Valorar tu visita</h2>
+        <p><strong>Servicio:</strong> {{ cita.servicio.nombre }}</p>
+        <p><strong>Barbero:</strong> {{ cita.barbero.nombre }}</p>
+        <p><strong>Fecha:</strong> {{ cita.fecha_hora|date:"d/m/Y H:i" }}</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div style="margin: 20px 0;">
+                <label><strong>{{ form.puntuacion.label }}</strong></label>
+                <div class="stars">
+                    {% for value, label in form.puntuacion.field.choices %}
+                        <input type="radio" name="puntuacion" value="{{ value }}" id="star{{ value }}" required>
+                        <label for="star{{ value }}">★</label>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <label><strong>{{ form.comentario.label }}</strong></label>
+                {{ form.comentario }}
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Enviar Valoración</button>
+            <a href="{% url 'scheduling:mis_citas' %}" class="btn">Cancelar</a>
+        </form>
+    </div>
+</body>
+</html>

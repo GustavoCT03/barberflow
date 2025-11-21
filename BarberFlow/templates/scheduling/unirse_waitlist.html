@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Lista de espera - {{ barbero.nombre }} / {{ servicio.nombre }}</h2>
+<form method="post">
+  {% csrf_token %}
+  <div>
+    {{ form.fecha_dia.label_tag }} {{ form.fecha_dia }}
+  </div>
+  <button type="submit">Unirme</button>
+  <a href="{% url 'scheduling:seleccionar_barbero_fecha' barbero.sucursal_principal_id servicio.id %}">Volver</a>
+</form>
+{% endblock %}

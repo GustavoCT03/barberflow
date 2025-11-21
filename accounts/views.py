@@ -97,3 +97,53 @@ def post_login_router(request):
         return redirect("dashboard:superadmin")
     messages.error(request, "Rol de usuario no reconocido.")
     return redirect("login")
+def aceptar_invitacion_barbero(request, token):
+    """Barbero acepta invitación y completa registro"""
+    invitacion = get_object_or_404(InvitacionBarbero, token=token)
+    
+    # Validar si ya fue usada o expiró
+    if invitacion.usado:
+        messages.error(request, "Esta invitación ya fue utilizada")
+        return redirect('login')
+    
+    if invitacion.fecha_expiracion < timezone.now():
+        messages.error(request, "Esta invitación ha expirado")
+        return redirect('login')
+    
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        telefono = request.POST.get('telefono')
+        password = request.POST.get('password')
+        password2 = request.POST.get('password2')
+        
+        if password != password2:
+            messages.error(request, "Las contraseñas no coinciden")
+        else:
+            # Crear usuario
+            user = User.objects.create_user(
+                email=invitacion.email,
+                nombre=nombre,
+                telefono=telefono,
+                password=password,
+                rol='barbero'
+            )
+            
+            # Crear barbero
+            Barbero.objects.create(
+                user=user,
+                barberia=invitacion.barberia,
+                sucursal_principal=invitacion.sucursal,
+                nombre=nombre,
+                telefono=telefono
+            )
+            
+            # Marcar invitación como usada
+            invitacion.usado = True
+            invitacion.save()
+            
+            messages.success(request, "¡Registro exitoso! Ya puedes iniciar sesión")
+            return redirect('login')
+    
+    return render(request, 'accounts/aceptar_invitacion.html', {
+        'invitacion': invitacion
+    })

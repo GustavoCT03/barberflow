@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Valoraciones - {{ barbero.nombre }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .promedio {
+            font-size: 3em;
+            color: #ffc107;
+        }
+        .valoracion-card {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+        .estrellas {
+            color: #ffc107;
+            font-size: 1.2em;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ barbero.nombre }}</h1>
+        <div class="promedio">{{ promedio }} ⭐</div>
+        <p>{{ total }} valoración{{ total|pluralize:"es" }}</p>
+    </div>
+
+    <a href="{% url 'scheduling:seleccionar_barberia' %}" class="btn">← Volver</a>
+
+    <h2 style="margin-top: 30px;">Opiniones de clientes</h2>
+
+    {% if valoraciones %}
+        {% for val in valoraciones %}
+            <div class="valoracion-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>{{ val.cliente.nombre }}</strong>
+                    <span class="estrellas">{{ val.puntuacion }}★</span>
+                </div>
+                <small style="color: #666;">{{ val.fecha|date:"d/m/Y" }} - {{ val.cita.servicio.nombre }}</small>
+                {% if val.comentario %}
+                    <p style="margin-top: 10px;">{{ val.comentario }}</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="valoracion-card" style="text-align: center;">
+            <p>Aún no hay valoraciones para este barbero.</p>
+        </div>
+    {% endif %}
+</body>
+</html>

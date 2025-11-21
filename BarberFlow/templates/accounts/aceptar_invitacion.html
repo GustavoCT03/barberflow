@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Aceptar Invitación - BarberFlow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .alert {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h2>Completa tu registro como Barbero</h2>
+    <p>Has sido invitado a unirte a: <strong>{{ invitacion.barberia.nombre }}</strong></p>
+    <p>Sucursal: <strong>{{ invitacion.sucursal.nombre }}</strong></p>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-error">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label>Nombre completo:</label>
+            <input type="text" name="nombre" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Teléfono:</label>
+            <input type="tel" name="telefono" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Email:</label>
+            <input type="email" value="{{ invitacion.email }}" disabled>
+        </div>
+        
+        <div class="form-group">
+            <label>Contraseña:</label>
+            <input type="password" name="password" required minlength="6">
+        </div>
+        
+        <div class="form-group">
+            <label>Confirmar contraseña:</label>
+            <input type="password" name="password2" required minlength="6">
+        </div>
+        
+        <button type="submit" class="btn">Completar Registro</button>
+    </form>
+</body>
+</html>
