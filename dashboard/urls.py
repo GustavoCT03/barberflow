@@ -9,9 +9,14 @@ urlpatterns = [
     path("admin/", views.panel_admin_barberia, name="panel_admin_barberia"),       
     path("barbero/", views.panel_barbero, name="panel_barbero"),
     path("cliente/", views.panel_cliente, name="panel_cliente"),
-    
+    path('exportar/citas/', views.exportar_citas_csv, name='exportar_citas'),
+    path('exportar/ingresos/', views.exportar_ingresos_csv, name='exportar_ingresos'),
+    path('metricas/barberos/', views.metricas_barberos, name='metricas_barberos'),
+    path('cita/<int:cita_id>/completar/', views.marcar_cita_completada, name='marcar_cita_completada'),
+    path('cita/<int:cita_id>/no-show/', views.marcar_no_show, name='marcar_no_show'),
+    path('estadisticas/ingresos/', views.estadisticas_ingresos, name='estadisticas_ingresos'),
     # Barbero acciones
-    path("barbero/cita/<int:cita_id>/completar/", views.marcar_cita_completada, name="marcar_completada"),
+    
     # Sucursales
     path("admin/sucursales/crear/", views.sucursal_crear, name="sucursal_crear"),
     path("admin/sucursales/<int:sucursal_id>/editar/", views.sucursal_editar, name="sucursal_editar"),

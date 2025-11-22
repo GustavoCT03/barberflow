@@ -3,7 +3,70 @@ from django.conf import settings
 from core.models import Barbero, Sucursal, Servicio
 from datetime import datetime, timedelta
 from django.utils import timezone
-
+class Promocion(models.Model):
+    class TipoDescuento(models.TextChoices):
+        PORCENTAJE = 'porcentaje', 'Porcentaje'
+        MONTO_FIJO = 'monto_fijo', 'Monto Fijo'
+    
+    barberia = models.ForeignKey('core.Barberia', on_delete=models.CASCADE, related_name='promociones')
+    nombre = models.CharField(max_length=200)
+    codigo = models.CharField(max_length=50, unique=True, help_text="Código que ingresa el cliente")
+    tipo_descuento = models.CharField(max_length=20, choices=TipoDescuento.choices)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, help_text="Porcentaje o monto fijo")
+    
+    # Restricciones
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    usos_maximos = models.IntegerField(default=0, help_text="0 = ilimitado")
+    usos_actuales = models.IntegerField(default=0)
+    monto_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Aplicabilidad
+    servicios = models.ManyToManyField('core.Servicio', blank=True, help_text="Vacío = todos")
+    solo_nuevos_clientes = models.BooleanField(default=False)
+    
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'bf_promociones'
+        verbose_name = 'Promoción'
+        verbose_name_plural = 'Promociones'
+    
+    def __str__(self):
+        return f"{self.nombre} ({self.codigo})"
+    
+    def calcular_descuento(self, monto):
+        """Calcula el descuento aplicado al monto"""
+        if self.tipo_descuento == self.TipoDescuento.PORCENTAJE:
+            return monto * (self.valor / 100)
+        return min(self.valor, monto)
+    
+    def es_valida(self, cliente=None, servicio=None, monto=0):
+        """Valida si la promoción se puede aplicar"""
+        from django.utils import timezone
+        
+        if not self.activo:
+            return False, "Promoción inactiva"
+        
+        hoy = timezone.now().date()
+        if not (self.fecha_inicio <= hoy <= self.fecha_fin):
+            return False, "Promoción fuera de vigencia"
+        
+        if self.usos_maximos > 0 and self.usos_actuales >= self.usos_maximos:
+            return False, "Promoción agotada"
+        
+        if monto < self.monto_minimo:
+            return False, f"Monto mínimo: ${self.monto_minimo}"
+        
+        if self.servicios.exists() and servicio and servicio not in self.servicios.all():
+            return False, "Promoción no válida para este servicio"
+        
+        if self.solo_nuevos_clientes and cliente:
+            if Cita.objects.filter(cliente=cliente, estado=Cita.Estado.COMPLETADA).exists():
+                return False, "Solo para nuevos clientes"
+        
+        return True, "Válida"
 class Cita(models.Model):
     class Estado(models.TextChoices):
         PENDIENTE = 'pendiente', 'Pendiente'
@@ -23,6 +86,9 @@ class Cita(models.Model):
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     notas = models.TextField(blank=True)
+
+    promocion = models.ForeignKey(Promocion, on_delete=models.SET_NULL, null=True, blank=True, related_name='citas')
+    descuento_aplicado = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     confirmada_en = models.DateTimeField(null=True, blank=True)
     cancelado_en = models.DateTimeField(null=True, blank=True)

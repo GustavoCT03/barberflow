@@ -56,12 +56,28 @@
     </div>
 
     <div class="bf-panel">
-      <h2 class="bf-panel__title">Métricas</h2>
+      <h2 class="bf-panel__title">Métricas (últimos 7 días)</h2>
       <ul class="bf-kpis">
         <li><span class="bf-kpi__num">{{ kpi.ocupacion|default:"0" }}%</span><span class="bf-kpi__desc">Ocupación</span></li>
         <li><span class="bf-kpi__num">{{ kpi.no_shows|default:"0" }}</span><span class="bf-kpi__desc">No-shows</span></li>
+        <li><span class="bf-kpi__num">{{ kpi.completadas|default:"0" }}/{{ kpi.total_citas|default:"0" }}</span><span class="bf-kpi__desc">Completadas</span></li>
         <li><span class="bf-kpi__num">{{ kpi.conversion_15|default:"0" }}%</span><span class="bf-kpi__desc">Conversión 15′</span></li>
       </ul>
+    </div>
+
+    <div class="bf-panel">
+      <h2 class="bf-panel__title">Reportes</h2>
+      <a class="bf-btn" href="{% url 'metricas_barberos' %}">📊 Métricas por Barbero</a>
+      <a class="bf-btn" href="{% url 'estadisticas_ingresos' %}">💰 Estadísticas de Ingresos</a>
+      <a class="bf-btn" href="{% url 'exportar_citas' %}">📊 Exportar Citas CSV</a>
+      <a class="bf-btn" href="{% url 'exportar_ingresos' %}">💰 Exportar Ingresos CSV</a>
+      <form method="get" action="{% url 'exportar_citas' %}" style="margin-top: 1rem;">
+        <label>Desde:</label>
+        <input type="date" name="desde">
+        <label>Hasta:</label>
+        <input type="date" name="hasta">
+        <button class="bf-btn" type="submit">Filtrar y Exportar</button>
+      </form>
     </div>
   </div>
 </section>

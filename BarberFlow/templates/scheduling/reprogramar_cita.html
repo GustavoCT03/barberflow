@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Reprogramar Cita · BarberFlow{% endblock %}
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container">
+    <h1>Reprogramar Cita</h1>
+    
+    <div class="bf-panel">
+      <h3>Cita Actual</h3>
+      <p><strong>Fecha:</strong> {{ cita.fecha_hora|date:"d/m/Y H:i" }}</p>
+      <p><strong>Barbero:</strong> {{ cita.barbero.nombre }}</p>
+      <p><strong>Servicio:</strong> {{ cita.servicio.nombre }}</p>
+      <p><strong>Reprogramaciones:</strong> {{ cita.reprogramado_count }}/3</p>
+    </div>
+
+    <form method="post" class="bf-form">
+      {% csrf_token %}
+      <label>Nueva Fecha:</label>
+      <input type="date" id="fecha" value="{{ fecha_actual }}" onchange="actualizarSlots()">
+      
+      <label>Horario Disponible:</label>
+      <select name="fecha_hora" required>
+        {% for slot in slots %}
+        <option value="{{ fecha_actual }}T{{ slot }}:00">{{ slot }}</option>
+        {% empty %}
+        <option disabled>No hay horarios disponibles</option>
+        {% endfor %}
+      </select>
+      
+      <button class="bf-btn" type="submit">Confirmar Reprogramación</button>
+      <a class="bf-btn bf-btn--secondary" href="{% url 'scheduling:mis_citas' %}">Cancelar</a>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -82,10 +82,15 @@
                         </td>
                         <td>
                             {% if cita.estado == 'pendiente' or cita.estado == 'confirmada' %}
-                                <a href="{% url 'marcar_completada' cita.id %}" 
+                                <a href="{% url 'marcar_cita_completada' cita.id %}" 
                                    class="btn btn-sm btn-success"
                                    onclick="return confirm('¿Marcar como completada?')">
                                     ✓ Completar
+                                </a>
+                                <a href="{% url 'marcar_no_show' cita.id %}" 
+                                   class="btn btn-sm btn-danger"
+                                   onclick="return confirm('¿Marcar como No-Show?')">
+                                    ✗ No-Show
                                 </a>
                             {% else %}
                                 <span class="text-muted">-</span>

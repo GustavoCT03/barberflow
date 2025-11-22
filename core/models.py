@@ -49,7 +49,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, db_index=True)
     nombre = models.CharField(max_length=150)
     rol = models.CharField(max_length=20, choices=Roles.choices, default=Roles.CLIENTE, db_index=True)
-
+    puntos_fidelidad = models.JSONField(default=dict, blank=True, help_text="{'barberia_id': puntos}")
+    
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -61,6 +62,87 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.nombre} <{self.email}>"
+    
+    def obtener_puntos(self, barberia_id):
+        """HU42: Obtener puntos de fidelidad de una barbería"""
+        if not isinstance(self.puntos_fidelidad, dict):
+            self.puntos_fidelidad = {}
+            self.save(update_fields=['puntos_fidelidad'])
+        return self.puntos_fidelidad.get(str(barberia_id), 0)
+    
+    def agregar_puntos(self, barberia_id, puntos, cita=None):
+        """HU42: Agregar puntos al cliente por cita completada"""
+        barberia_id_str = str(barberia_id)
+        
+        if not isinstance(self.puntos_fidelidad, dict):
+            self.puntos_fidelidad = {}
+        
+        self.puntos_fidelidad[barberia_id_str] = self.puntos_fidelidad.get(barberia_id_str, 0) + puntos
+        self.save(update_fields=['puntos_fidelidad'])
+        
+        # Registrar historial
+        HistorialPuntos.objects.create(
+            cliente=self,
+            barberia_id=barberia_id,
+            tipo=HistorialPuntos.TipoMovimiento.GANADOS,
+            puntos=puntos,
+            cita=cita,
+            descripcion=f"Ganados por cita #{cita.id}" if cita else "Puntos ganados"
+        )
+        
+        return self.puntos_fidelidad[barberia_id_str]
+    
+    def canjear_puntos(self, barberia_id, puntos):
+        """HU42: Canjear puntos por descuento"""
+        barberia_id_str = str(barberia_id)
+        
+        if not isinstance(self.puntos_fidelidad, dict):
+            self.puntos_fidelidad = {}
+        
+        saldo_actual = self.puntos_fidelidad.get(barberia_id_str, 0)
+        
+        if saldo_actual < puntos:
+            return False, "Puntos insuficientes"
+        
+        self.puntos_fidelidad[barberia_id_str] = saldo_actual - puntos
+        self.save(update_fields=['puntos_fidelidad'])
+        
+        # Registrar historial
+        HistorialPuntos.objects.create(
+            cliente=self,
+            barberia_id=barberia_id,
+            tipo=HistorialPuntos.TipoMovimiento.CANJEADOS,
+            puntos=-puntos,
+            descripcion="Canjeados en reserva"
+        )
+        
+        return True, self.puntos_fidelidad[barberia_id_str]
+    
+    def obtener_todas_las_barberias_con_puntos(self):
+        """Obtener lista de barberías donde el usuario tiene puntos"""
+        if not isinstance(self.puntos_fidelidad, dict):
+            return []
+        
+        resultado = []
+        for barberia_id, puntos in self.puntos_fidelidad.items():
+            if puntos > 0:
+                try:
+                    barberia = Barberia.objects.get(id=int(barberia_id))
+                    try:
+                        programa = ProgramaFidelidad.objects.get(barberia=barberia, activo=True)
+                        valor_monetario = puntos * float(programa.pesos_por_punto)
+                    except ProgramaFidelidad.DoesNotExist:
+                        valor_monetario = 0
+                    
+                    resultado.append({
+                        'barberia': barberia,
+                        'puntos': puntos,
+                        'valor': valor_monetario
+                    })
+                except Barberia.DoesNotExist:
+                    pass
+        
+        return resultado
 
 
 phone_validator = RegexValidator(
@@ -230,7 +312,49 @@ class Promocion(models.Model):
     def esta_vigente(self):
         hoy = timezone.now().date()
         return self.activa and self.fecha_inicio <= hoy <= self.fecha_fin
+class ProgramaFidelidad(models.Model):
+    barberia = models.ForeignKey(Barberia, on_delete=models.CASCADE, related_name="programa_fidelidad")
+    puntos_por_cita = models.PositiveIntegerField(default=10, help_text="Puntos ganados por cita completada")
+    pesos_por_punto = models.DecimalField(
+        max_digits=6, 
+        decimal_places=2, 
+        default=100,
+        validators=[MinValueValidator(0)],
+        help_text="Valor en pesos de cada punto"
+    )
+    minimo_canje = models.PositiveIntegerField(default=50, help_text="Mínimo de puntos para canjear")
+    activo = models.BooleanField(default=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    modificado = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        verbose_name = "Programa de Fidelidad"
+        verbose_name_plural = "Programas de Fidelidad"
+
+    def __str__(self):
+        return f"Programa {self.barberia.nombre} ({self.puntos_por_cita}pts/cita)"
+class HistorialPuntos(models.Model):
+    class TipoMovimiento(models.TextChoices):
+        GANADOS = "ganados", "Ganados"
+        CANJEADOS = "canjeados", "Canjeados"
+        EXPIRARON = "expiraron", "Expiraron"
+        AJUSTE = "ajuste", "Ajuste Manual"
+
+    cliente = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="historial_puntos")
+    barberia = models.ForeignKey(Barberia, on_delete=models.CASCADE, related_name="historial_puntos")
+    cita = models.ForeignKey("scheduling.Cita", on_delete=models.SET_NULL, null=True, blank=True, related_name="puntos_generados")
+    tipo = models.CharField(max_length=20, choices=TipoMovimiento.choices)
+    puntos = models.IntegerField(help_text="Positivo=ganados, Negativo=canjeados")
+    descripcion = models.CharField(max_length=200, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-fecha"]
+        verbose_name = "Historial de Puntos"
+        verbose_name_plural = "Historial de Puntos"
+
+    def __str__(self):
+        return f"{self.cliente.nombre} - {self.puntos}pts ({self.get_tipo_display()})"
 
 # =========================
 # PLANES / LICENCIAS

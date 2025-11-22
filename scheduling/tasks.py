@@ -31,27 +31,37 @@ def enviar_email_confirmacion(self, cita_id: int):
 
 @shared_task
 def enviar_recordatorios():
+    from django.core.mail import send_mail
+    from django.conf import settings
+    from .utils import firmar
+    
     ahora = timezone.now()
     inicio = ahora + timedelta(hours=2)
     fin = inicio + timedelta(minutes=10)
+    
     qs = Cita.objects.filter(
         fecha_hora__gte=inicio,
         fecha_hora__lte=fin,
         recordatorio_enviado=False,
         estado__in=[Cita.Estado.PENDIENTE, Cita.Estado.CONFIRMADA],
-    )
+    ).select_related('cliente', 'barbero', 'servicio')
+    
     enviados = 0
     for cita in qs:
+        token_confirmar = firmar(f"cita:{cita.id}:confirmar")
+        enlace = f"{settings.SITE_URL}/scheduling/confirmar/{token_confirmar}/"
+        
         send_mail(
-            subject="Recordatorio de tu cita",
-            message=f"En 2 horas tienes cita con {cita.barbero.nombre} ({cita.servicio.nombre}) a las {cita.fecha_hora.strftime('%H:%M')}.",
-            from_email=None,
+            subject="⏰ Recordatorio: Tu cita en 2 horas",
+            message=f"Hola {cita.cliente.nombre},\n\nEn 2 horas tienes cita con {cita.barbero.nombre} ({cita.servicio.nombre}) a las {cita.fecha_hora.strftime('%H:%M')}.\n\nConfirma aquí: {enlace}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[cita.cliente.email],
             fail_silently=True,
         )
         cita.recordatorio_enviado = True
         cita.save(update_fields=["recordatorio_enviado"])
         enviados += 1
+    
     return f"recordatorios={enviados}"
 
 @shared_task

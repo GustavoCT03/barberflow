@@ -7,26 +7,149 @@
     <h2>Bienvenido, {{ request.user.nombre }}</h2>
     <p class="text-muted">Panel de control para clientes</p>
 
+    <!-- KPIs -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3>{{ total_citas }}</h3>
+                    <p>Total Citas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-success text-white">
+                <div class="card-body">
+                    <h3>{{ completadas }}</h3>
+                    <p>Completadas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-info text-white">
+                <div class="card-body">
+                    <h3>${{ gasto_total|floatformat:0 }}</h3>
+                    <p>Gasto Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-warning">
+                <div class="card-body">
+                    <h3>{{ proximas_citas|length }}</h3>
+                    <p>Próximas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones -->
     <div class="row mt-4">
-        <div class="col-md-6">
+        <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Mis Citas</h5>
+                    <h5 class="card-title">📅 Mis Citas</h5>
                     <p class="card-text">Ver y gestionar tus citas programadas</p>
                     <a href="{% url 'scheduling:mis_citas' %}" class="btn btn-primary">Ver Citas</a>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-6">
+        <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Nueva Cita</h5>
-                    <p class="card-text">Agenda una nueva cita en tu barbería favorita</p>
+                    <h5 class="card-title">✂️ Nueva Cita</h5>
+                    <p class="card-text">Agenda una nueva cita</p>
                     <a href="{% url 'scheduling:seleccionar_barberia' %}" class="btn btn-success">Agendar Cita</a>
                 </div>
             </div>
         </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">🔍 Buscar Barberos</h5>
+                    <p class="card-text">Filtra por sucursal y valoración</p>
+                    <a href="{% url 'scheduling:buscar_barberos' %}" class="btn btn-info">Buscar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Próximas citas -->
+    {% if proximas_citas %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header"><h5>Próximas Citas</h5></div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Barbero</th>
+                                    <th>Servicio</th>
+                                    <th>Sucursal</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cita in proximas_citas %}
+                                <tr>
+                                    <td>{{ cita.fecha_hora|date:"d/m/Y" }}</td>
+                                    <td>{{ cita.fecha_hora|date:"H:i" }}</td>
+                                    <td>{{ cita.barbero.nombre }}</td>
+                                    <td>{{ cita.servicio.nombre }}</td>
+                                    <td>{{ cita.sucursal.nombre }}</td>
+                                    <td>
+                                        <span class="badge {% if cita.estado == 'confirmada' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                            {{ cita.get_estado_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="text-muted">Sin próximas citas.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Favoritos y puntos -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header"><h5>Tus Favoritos</h5></div>
+                <div class="card-body">
+                    <p><strong>Barbero Favorito:</strong> {{ barbero_favorito }}</p>
+                    <p><strong>Servicio Favorito:</strong> {{ servicio_favorito }}</p>
+                </div>
+            </div>
+        </div>
+        {% if barberias_con_puntos %}
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header"><h5>⭐ Puntos de Fidelidad</h5></div>
+                <div class="card-body">
+                    {% for item in barberias_con_puntos %}
+                    <div class="mb-3 p-2 border rounded">
+                        <p class="mb-1"><strong>{{ item.barberia.nombre }}</strong></p>
+                        <p class="mb-1" style="font-size:1.2em;color:#28a745;">{{ item.puntos }} puntos</p>
+                        <p class="mb-2 text-muted">Valor: ${{ item.valor|floatformat:2 }}</p>
+                        <a class="btn btn-sm btn-success" href="{% url 'scheduling:canjear_puntos' item.barberia.id %}">Canjear</a>
+                    </div>
+                    {% endfor %}
+                    {% if not barberias_con_puntos %}
+                    <p class="text-muted mb-0">Aún no tienes puntos disponibles.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

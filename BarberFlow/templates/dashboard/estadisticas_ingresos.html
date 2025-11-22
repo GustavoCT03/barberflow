@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Estadísticas de Ingresos · BarberFlow{% endblock %}
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container">
+    <h1>Estadísticas de Ingresos</h1>
+    
+    <form method="get" style="margin-bottom: 2rem;">
+      <label>Período:</label>
+      <select name="periodo" onchange="this.form.submit()">
+        <option value="7" {% if periodo == "7" %}selected{% endif %}>Últimos 7 días</option>
+        <option value="30" {% if periodo == "30" %}selected{% endif %}>Últimos 30 días</option>
+        <option value="90" {% if periodo == "90" %}selected{% endif %}>Últimos 3 meses</option>
+      </select>
+    </form>
+
+    <div class="bf-grid-2" style="margin-bottom: 2rem;">
+      <div class="bf-panel">
+        <h3>Total Período</h3>
+        <h1 style="color: #28a745;">${{ total_periodo|floatformat:0 }}</h1>
+      </div>
+      <div class="bf-panel">
+        <h3>Promedio Diario</h3>
+        <h1 style="color: #007bff;">${{ promedio_diario|floatformat:0 }}</h1>
+      </div>
+    </div>
+
+    <div class="bf-panel" style="margin-bottom: 2rem;">
+      <h2>Ingresos por Día</h2>
+      <canvas id="chartIngresos" style="max-height: 400px;"></canvas>
+    </div>
+
+    <div class="bf-panel">
+      <h2>Top 5 Servicios</h2>
+      <table class="bf-table">
+        <thead>
+          <tr>
+            <th>Servicio</th>
+            <th>Cantidad</th>
+            <th>Ingresos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in ingresos_servicios %}
+          <tr>
+            <td>{{ item.servicio__nombre }}</td>
+            <td>{{ item.cantidad }}</td>
+            <td>${{ item.total|floatformat:0 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('chartIngresos');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ fechas_json|safe }},
+            datasets: [{
+                label: 'Ingresos ($)',
+                data: {{ montos_json|safe }},
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

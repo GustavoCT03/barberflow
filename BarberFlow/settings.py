@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne',
     'django.contrib.staticfiles',
     'accounts.apps.AccountsConfig',
     'analytics.apps.AnalyticsConfig',
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
     'licensing.apps.LicensingConfig',
     'scheduling.apps.SchedulingConfig',
     'django_celery_results',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -157,3 +159,11 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 # Email (para notificaciones); en dev usa consola:
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+SITE_URL = "http://localhost:8000"  # Cambiar en producción
+ASGI_APPLICATION = 'BarberFlow.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'  # Para desarrollo
+    }
+}

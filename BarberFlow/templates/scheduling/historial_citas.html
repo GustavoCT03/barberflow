@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Historial de Citas · BarberFlow{% endblock %}
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container">
+    <h1>Historial de Citas</h1>
+    
+    <form method="get" class="bf-form">
+      <label>Estado:</label>
+      <select name="estado">
+        <option value="">Todos</option>
+        {% for val, label in estados %}
+        <option value="{{ val }}" {% if filtros.estado == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      
+      <label>Desde:</label>
+      <input type="date" name="desde" value="{{ filtros.desde }}">
+      
+      <label>Hasta:</label>
+      <input type="date" name="hasta" value="{{ filtros.hasta }}">
+      
+      <button class="bf-btn" type="submit">Filtrar</button>
+      <a class="bf-btn" href="{% url 'scheduling:historial_citas' %}">Limpiar</a>
+    </form>
+
+    <ul class="bf-list" style="margin-top: 2rem;">
+      {% for cita in page_obj %}
+      <li class="bf-list__item">
+        <div>
+          <strong>{{ cita.fecha_hora|date:"d/m/Y H:i" }}</strong> - {{ cita.servicio.nombre }}
+          <br>Barbero: {{ cita.barbero.nombre }} | Sucursal: {{ cita.sucursal.nombre }}
+          <br>Estado: <span class="bf-badge">{{ cita.get_estado_display }}</span>
+        </div>
+        <div class="bf-list__actions">
+          {% if cita.estado == 'completada' and not cita.valoracion %}
+          <a class="bf-link" href="{% url 'scheduling:valorar_cita' cita.id %}">Valorar</a>
+          {% endif %}
+        </div>
+      </li>
+      {% empty %}
+      <li class="bf-empty">No tienes citas en tu historial</li>
+      {% endfor %}
+    </ul>
+
+    <!-- Paginación -->
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}&estado={{ filtros.estado }}&desde={{ filtros.desde }}&hasta={{ filtros.hasta }}">Anterior</a>
+      {% endif %}
+      <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}&estado={{ filtros.estado }}&desde={{ filtros.desde }}&hasta={{ filtros.hasta }}">Siguiente</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

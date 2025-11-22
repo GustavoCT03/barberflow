@@ -26,10 +26,15 @@
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
+            margin-right: 10px;
         }
         .btn-primary {
             background: #007bff;
             color: white;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #000;
         }
         .estado {
             display: inline-block;
@@ -52,6 +57,7 @@
 </head>
 <body>
     <h1>Mis Citas</h1>
+    <a class="btn btn-primary" href="{% url 'scheduling:historial_citas' %}">Ver Historial Completo</a>
     
     {% if messages %}
         {% for message in messages %}
@@ -87,34 +93,44 @@
                 {% endif %}
                 
                 <!-- Botones según estado -->
-                {% if cita.estado == 'pendiente' or cita.estado == 'confirmada' %}
-                    <form method="post" action="{% url 'scheduling:cancelar_cita' cita.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn" style="background: #dc3545; color: white;"
-                                onclick="return confirm('¿Estás seguro de cancelar esta cita?');">
-                            ✗ Cancelar Cita
-                        </button>
-                    </form>
-                {% elif cita.estado == 'completada' %}
-                    {% if cita.valoracion %}
-                        <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px;">
-                            <span style="color: #ffc107; font-size: 1.2em;">
-                                {% for i in "12345" %}
-                                    {% if forloop.counter <= cita.valoracion.puntuacion %}★{% else %}☆{% endif %}
-                                {% endfor %}
-                            </span>
-                            {% if cita.valoracion.comentario %}
-                                <p style="font-style: italic; color: #666; margin-top: 5px;">
-                                    "{{ cita.valoracion.comentario }}"
-                                </p>
-                            {% endif %}
-                        </div>
-                    {% else %}
-                        <a href="{% url 'scheduling:valorar_cita' cita.id %}" class="btn" style="background: #ffc107; color: #000;">
-                            ⭐ Valorar Servicio
-                        </a>
+                <div style="margin-top: 15px;">
+                    {% if cita.estado == 'pendiente' or cita.estado == 'confirmada' %}
+                        <!-- HU11: Botón Reprogramar -->
+                        {% if cita.puede_modificar and cita.reprogramado_count < 3 %}
+                            <a href="{% url 'scheduling:reprogramar_cita' cita.id %}" class="btn btn-warning">
+                                📅 Reprogramar ({{ cita.reprogramado_count }}/3)
+                            </a>
+                        {% endif %}
+                        
+                        <!-- Botón Cancelar -->
+                        <form method="post" action="{% url 'scheduling:cancelar_cita' cita.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn" style="background: #dc3545; color: white;"
+                                    onclick="return confirm('¿Estás seguro de cancelar esta cita?');">
+                                ✗ Cancelar Cita
+                            </button>
+                        </form>
+                    {% elif cita.estado == 'completada' %}
+                        {% if cita.valoracion %}
+                            <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px;">
+                                <span style="color: #ffc107; font-size: 1.2em;">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= cita.valoracion.puntuacion %}★{% else %}☆{% endif %}
+                                    {% endfor %}
+                                </span>
+                                {% if cita.valoracion.comentario %}
+                                    <p style="font-style: italic; color: #666; margin-top: 5px;">
+                                        "{{ cita.valoracion.comentario }}"
+                                    </p>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <a href="{% url 'scheduling:valorar_cita' cita.id %}" class="btn btn-warning">
+                                ⭐ Valorar Servicio
+                            </a>
+                        {% endif %}
                     {% endif %}
-                {% endif %}
+                </div>
             </div>
         {% endfor %}
     {% else %}

@@ -3,6 +3,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.utils import timezone
 from datetime import datetime, timedelta 
+from django.db.models import Count, Q, Avg
+from datetime import date, timedelta
+import csv
+from django.http import HttpResponse
+from django.db import models
 
 from core.models import (
     Nosotros,
@@ -16,6 +21,8 @@ from core.decorators import role_required
 from .forms import SucursalCreateForm, SucursalUpdateForm
 from scheduling.models import Cita  # ← AGREGA ESTA LÍNEA
 from .forms_servicios import ServicioForm
+import json
+from django.db.models.functions import TruncDate
 
 
 # Helper: obtener la barbería (Nosotros) asociada al usuario
@@ -71,14 +78,36 @@ def panel_admin_barberia(request):
         messages.error(request, "No se encontró tu barbería asociada.")
         return redirect("login")
     
-    sucursales = Sucursal.objects.filter(nosotros=nosotros)
+    sucursales = Sucursal.objects.filter(barberia__nosotros=nosotros)
     servicios = Servicio.objects.filter(barberia__nosotros=nosotros, activo=True)[:5]
     
-    # KPIs básicos (placeholder, se completarán en HU20)
+    # KPIs últimos 7 días
+    hace_7 = timezone.now() - timedelta(days=7)
+    citas_periodo = Cita.objects.filter(
+        barbero__nosotros=nosotros,
+        creada_en__gte=hace_7
+    )
+    
+    total = citas_periodo.count()
+    completadas = citas_periodo.filter(estado=Cita.Estado.COMPLETADA).count()
+    no_shows = citas_periodo.filter(estado=Cita.Estado.NO_SHOW).count()
+    
+    # Tasa de ocupación (horas reservadas / horas disponibles)
+    barberos_activos = Barbero.objects.filter(nosotros=nosotros, activo=True).count()
+    horas_disponibles = barberos_activos * 8 * 7  # 8h/día, 7 días
+    horas_reservadas = total * 0.5  # asume 30min promedio por cita
+    
+    ocupacion = int((horas_reservadas / horas_disponibles * 100)) if horas_disponibles else 0
+    
+    # Conversión lista espera (simplificado)
+    conversion_15 = 0  # implementar cuando exista modelo Oferta15min
+    
     kpi = {
-        "ocupacion": 0,
-        "no_shows": 0,
-        "conversion_15": 0,
+        "ocupacion": ocupacion,
+        "no_shows": no_shows,
+        "conversion_15": conversion_15,
+        "total_citas": total,
+        "completadas": completadas,
     }
     
     context = {
@@ -323,15 +352,24 @@ def panel_barbero(request):
 
 @login_required
 def marcar_cita_completada(request, cita_id):
-    """Marcar una cita como completada"""
-    cita = get_object_or_404(Cita, id=cita_id, barbero__user=request.user)
+    """HU22: Marcar cita como completada"""
+    cita = get_object_or_404(Cita, id=cita_id)
     
-    if cita.estado == 'pendiente' or cita.estado == 'confirmada':
-        cita.estado = 'completada'
-        cita.save()
-        messages.success(request, f"Cita con {cita.cliente.nombre} marcada como completada")
+    # Verificar que sea el barbero asignado
+    try:
+        barbero = Barbero.objects.get(user=request.user)
+        if cita.barbero != barbero:
+            messages.error(request, "No tienes permiso para esta cita")
+            return redirect('panel_barbero')
+    except Barbero.DoesNotExist:
+        messages.error(request, "No eres un barbero registrado")
+        return redirect('home')
+    
+    if cita.estado in [Cita.Estado.PENDIENTE, Cita.Estado.CONFIRMADA]:
+        cita.completar()
+        messages.success(request, f"Cita marcada como completada")
     else:
-        messages.warning(request, "Esta cita ya fue procesada")
+        messages.warning(request, "La cita no puede ser completada en su estado actual")
     
     return redirect('panel_barbero')
 
@@ -340,4 +378,280 @@ def marcar_cita_completada(request, cita_id):
 @login_required
 @role_required(User.Roles.CLIENTE)
 def panel_cliente(request):
-    return render(request, "dashboard/panel_cliente.html")
+    """HU48: Dashboard del cliente con estadísticas"""
+    from django.db.models import Count, Sum, Avg
+    
+    total_citas = Cita.objects.filter(cliente=request.user).count()
+    completadas = Cita.objects.filter(
+        cliente=request.user,
+        estado=Cita.Estado.COMPLETADA
+    ).count()
+    
+    proximas = Cita.objects.filter(
+        cliente=request.user,
+        fecha_hora__gte=timezone.now(),
+        estado__in=[Cita.Estado.PENDIENTE, Cita.Estado.CONFIRMADA]
+    ).select_related('barbero', 'servicio', 'sucursal').order_by('fecha_hora')[:5]
+    
+    # Barbero favorito
+    barbero_fav = Cita.objects.filter(
+        cliente=request.user,
+        estado=Cita.Estado.COMPLETADA
+    ).values('barbero__nombre').annotate(
+        total=Count('id')
+    ).order_by('-total').first()
+    
+    # Servicio más solicitado
+    servicio_fav = Cita.objects.filter(
+        cliente=request.user,
+        estado=Cita.Estado.COMPLETADA
+    ).values('servicio__nombre').annotate(
+        total=Count('id')
+    ).order_by('-total').first()
+    
+    # Gasto total
+    gasto_total = Cita.objects.filter(
+        cliente=request.user,
+        estado=Cita.Estado.COMPLETADA
+    ).aggregate(total=Sum('precio'))['total'] or 0
+    
+    # Puntos de fidelidad
+    barberias_con_puntos = []
+    for barberia_id, puntos in request.user.puntos_fidelidad.items():
+        if puntos > 0:
+            from core.models import Barberia, ProgramaFidelidad
+            try:
+                barberia = Barberia.objects.get(id=barberia_id)
+                programa = ProgramaFidelidad.objects.get(barberia=barberia, activo=True)
+                valor = float(puntos) * float(programa.pesos_por_punto)
+                
+                barberias_con_puntos.append({
+                    'barberia': barberia,
+                    'puntos': puntos,
+                    'valor': valor
+                })
+            except (Barberia.DoesNotExist, ProgramaFidelidad.DoesNotExist):
+                pass
+    
+    context = {
+        'total_citas': total_citas,
+        'completadas': completadas,
+        'proximas_citas': proximas,
+        'barbero_favorito': barbero_fav['barbero__nombre'] if barbero_fav else 'N/A',
+        'servicio_favorito': servicio_fav['servicio__nombre'] if servicio_fav else 'N/A',
+        'gasto_total': gasto_total,
+        'barberias_con_puntos': barberias_con_puntos
+    }
+    return render(request, 'dashboard/panel_cliente.html', context)
+@login_required
+@role_required(User.Roles.ADMIN_BARBERIA)
+def exportar_citas_csv(request):
+    """HU14: Exportar reporte de citas en CSV"""
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        messages.error(request, "No se encontró tu barbería asociada.")
+        return redirect("panel_admin_barberia")
+    
+    # Filtros opcionales
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+    
+    citas = Cita.objects.filter(
+        barbero__nosotros=nosotros
+    ).select_related('cliente', 'barbero', 'servicio', 'sucursal').order_by('-fecha_hora')
+    
+    if desde:
+        citas = citas.filter(fecha_hora__date__gte=desde)
+    if hasta:
+        citas = citas.filter(fecha_hora__date__lte=hasta)
+    
+    # Crear CSV
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="citas_{timezone.now().date()}.csv"'
+    response.write('\ufeff')  # BOM para Excel UTF-8
+    
+    writer = csv.writer(response)
+    writer.writerow(['ID', 'Fecha', 'Hora', 'Cliente', 'Barbero', 'Servicio', 'Sucursal', 'Estado', 'Precio'])
+    
+    for c in citas:
+        writer.writerow([
+            c.id,
+            c.fecha_hora.date(),
+            c.fecha_hora.time(),
+            c.cliente.nombre,
+            c.barbero.nombre,
+            c.servicio.nombre,
+            c.sucursal.nombre,
+            c.get_estado_display(),
+            c.precio
+        ])
+    
+    return response
+
+@login_required
+@role_required(User.Roles.ADMIN_BARBERIA)
+def exportar_ingresos_csv(request):
+    """HU14: Exportar reporte de ingresos por servicio"""
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        messages.error(request, "No se encontró tu barbería asociada.")
+        return redirect("panel_admin_barberia")
+    
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+    
+    citas = Cita.objects.filter(
+        barbero__nosotros=nosotros,
+        estado=Cita.Estado.COMPLETADA
+    ).select_related('servicio')
+    
+    if desde:
+        citas = citas.filter(fecha_hora__date__gte=desde)
+    if hasta:
+        citas = citas.filter(fecha_hora__date__lte=hasta)
+    
+    # Agrupar por servicio
+    from django.db.models import Sum, Count
+    resumen = citas.values('servicio__nombre').annotate(
+        cantidad=Count('id'),
+        total=Sum('precio')
+    ).order_by('-total')
+    
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="ingresos_{timezone.now().date()}.csv"'
+    response.write('\ufeff')
+    
+    writer = csv.writer(response)
+    writer.writerow(['Servicio', 'Cantidad', 'Ingresos'])
+    
+    for r in resumen:
+        writer.writerow([
+            r['servicio__nombre'],
+            r['cantidad'],
+            r['total']
+        ])
+    
+    return response
+@login_required
+@role_required(User.Roles.ADMIN_BARBERIA)
+def metricas_barberos(request):
+    """HU43: Métricas individuales por barbero"""
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        messages.error(request, "No se encontró tu barbería asociada.")
+        return redirect("panel_admin_barberia")
+    
+    desde = request.GET.get('desde', (timezone.now() - timedelta(days=30)).date())
+    hasta = request.GET.get('hasta', timezone.now().date())
+    
+    barberos = Barbero.objects.filter(nosotros=nosotros, activo=True)
+    estadisticas = []
+    
+    for barbero in barberos:
+        citas = Cita.objects.filter(
+            barbero=barbero,
+            fecha_hora__date__gte=desde,
+            fecha_hora__date__lte=hasta
+        )
+        
+        total = citas.count()
+        completadas = citas.filter(estado=Cita.Estado.COMPLETADA).count()
+        canceladas = citas.filter(estado__in=[Cita.Estado.CANCELADA_CLIENTE, Cita.Estado.CANCELADA_ADMIN]).count()
+        no_shows = citas.filter(estado=Cita.Estado.NO_SHOW).count()
+        
+        # Ingresos generados
+        ingresos = citas.filter(estado=Cita.Estado.COMPLETADA).aggregate(
+            total=models.Sum('precio')
+        )['total'] or 0
+        
+        # Valoración promedio
+        promedio_val = barbero.valoraciones.aggregate(
+            avg=models.Avg('puntuacion')
+        )['avg'] or 0
+        
+        estadisticas.append({
+            'barbero': barbero,
+            'total_citas': total,
+            'completadas': completadas,
+            'canceladas': canceladas,
+            'no_shows': no_shows,
+            'tasa_completado': int((completadas/total*100)) if total else 0,
+            'ingresos': ingresos,
+            'valoracion': round(promedio_val, 1)
+        })
+    
+    context = {
+        'estadisticas': estadisticas,
+        'desde': desde,
+        'hasta': hasta
+    }
+    return render(request, 'dashboard/metricas_barberos.html', context)
+@login_required
+def marcar_no_show(request, cita_id):
+    """HU22: Marcar cita como no-show"""
+    cita = get_object_or_404(Cita, id=cita_id)
+    
+    try:
+        barbero = Barbero.objects.get(user=request.user)
+        if cita.barbero != barbero:
+            messages.error(request, "No tienes permiso para esta cita")
+            return redirect('panel_barbero')
+    except Barbero.DoesNotExist:
+        messages.error(request, "No eres un barbero registrado")
+        return redirect('home')
+    
+    if cita.estado in [Cita.Estado.CONFIRMADA, Cita.Estado.EN_PROCESO]:
+        cita.marcar_no_show()
+        messages.success(request, "Cita marcada como No-Show")
+    else:
+        messages.warning(request, "La cita no puede ser marcada como No-Show")
+    
+    return redirect('panel_barbero')
+@login_required
+@role_required(User.Roles.ADMIN_BARBERIA)
+def estadisticas_ingresos(request):
+    """HU30: Estadísticas de ingresos por período"""
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        messages.error(request, "No se encontró tu barbería asociada.")
+        return redirect("panel_admin_barberia")
+    
+    periodo = request.GET.get('periodo', '30')  # días
+    dias = int(periodo)
+    
+    fecha_inicio = timezone.now() - timedelta(days=dias)
+    
+    # Ingresos por día
+    ingresos_diarios = Cita.objects.filter(
+        barbero__nosotros=nosotros,
+        estado=Cita.Estado.COMPLETADA,
+        fecha_hora__gte=fecha_inicio
+    ).annotate(
+        dia=TruncDate('fecha_hora')
+    ).values('dia').annotate(
+        total=models.Sum('precio')
+    ).order_by('dia')
+    
+    # Preparar datos para gráfico
+    fechas = [item['dia'].strftime('%d/%m') for item in ingresos_diarios]
+    montos = [float(item['total']) for item in ingresos_diarios]
+    
+    # Ingresos por servicio
+    ingresos_servicios = Cita.objects.filter(
+        barbero__nosotros=nosotros,
+        estado=Cita.Estado.COMPLETADA,
+        fecha_hora__gte=fecha_inicio
+    ).values('servicio__nombre').annotate(
+        total=models.Sum('precio'),
+        cantidad=models.Count('id')
+    ).order_by('-total')[:5]
+    
+    context = {
+        'periodo': periodo,
+        'fechas_json': json.dumps(fechas),
+        'montos_json': json.dumps(montos),
+        'ingresos_servicios': ingresos_servicios,
+        'total_periodo': sum(montos),
+        'promedio_diario': sum(montos) / dias if dias else 0
+    }
+    return render(request, 'dashboard/estadisticas_ingresos.html', context)

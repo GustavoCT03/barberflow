@@ -14,4 +14,8 @@ urlpatterns = [
     path('cita/<int:cita_id>/valorar/', views.valorar_cita, name='valorar_cita'),
     path('barbero/<int:barbero_id>/valoraciones/', views.ver_valoraciones_barbero, name='valoraciones_barbero'),
     path('waitlist/<int:barbero_id>/<int:servicio_id>/unirse/', views.unirse_waitlist, name='unirse_waitlist'),
+    path('confirmar/<str:token>/', views.confirmar_cita_por_enlace, name='confirmar_enlace'),
+    path('historial/', views.historial_citas, name='historial_citas'),
+    path('reprogramar/<int:cita_id>/', views.reprogramar_cita, name='reprogramar_cita'),
+    path('buscar/', views.buscar_barberos, name='buscar_barberos'),
 ]

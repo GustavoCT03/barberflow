@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Métricas por Barbero · BarberFlow{% endblock %}
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container">
+    <h1>Métricas por Barbero</h1>
+    <form method="get" class="bf-form" style="margin-bottom: 2rem;">
+      <label>Desde:</label>
+      <input type="date" name="desde" value="{{ desde }}">
+      <label>Hasta:</label>
+      <input type="date" name="hasta" value="{{ hasta }}">
+      <button class="bf-btn" type="submit">Filtrar</button>
+    </form>
+
+    <table class="bf-table">
+      <thead>
+        <tr>
+          <th>Barbero</th>
+          <th>Total Citas</th>
+          <th>Completadas</th>
+          <th>Canceladas</th>
+          <th>No Shows</th>
+          <th>Tasa Éxito</th>
+          <th>Ingresos</th>
+          <th>Valoración</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stat in estadisticas %}
+        <tr>
+          <td><strong>{{ stat.barbero.nombre }}</strong></td>
+          <td>{{ stat.total_citas }}</td>
+          <td>{{ stat.completadas }}</td>
+          <td>{{ stat.canceladas }}</td>
+          <td>{{ stat.no_shows }}</td>
+          <td>{{ stat.tasa_completado }}%</td>
+          <td>${{ stat.ingresos|floatformat:0 }}</td>
+          <td>⭐ {{ stat.valoracion }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8">No hay datos disponibles</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

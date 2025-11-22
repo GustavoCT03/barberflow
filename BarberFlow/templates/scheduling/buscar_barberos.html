@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Buscar Barberos · BarberFlow{% endblock %}
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container">
+    <h1>Buscar Barberos</h1>
+    
+    <form method="get" class="bf-form" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:1rem;margin-bottom:2rem;">
+      <div>
+        <label>Sucursal:</label>
+        <select name="sucursal">
+          <option value="">Todas</option>
+          {% for s in sucursales %}
+          <option value="{{ s.id }}" {% if filtros.sucursal_id == s.id|stringformat:"s" %}selected{% endif %}>{{ s.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Servicio:</label>
+        <select name="servicio">
+          <option value="">Todos</option>
+          {% for srv in servicios %}
+          <option value="{{ srv.id }}" {% if filtros.servicio_id == srv.id %}selected{% endif %}>{{ srv.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Valoración mínima:</label>
+        <select name="valoracion">
+          <option value="">Cualquiera</option>
+          {% for i in "12345" %}
+          <option value="{{ forloop.counter }}" {% if filtros.min_valoracion == forloop.counter|stringformat:"s" %}selected{% endif %}>
+            {{ forloop.counter }}⭐ o más
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="bf-btn" type="submit" style="align-self:end;">Buscar</button>
+    </form>
+
+    <div class="bf-grid-3">
+      {% for item in barberos_data %}
+      <div class="bf-panel">
+        <h3>{{ item.barbero.nombre }}</h3>
+        <p><strong>Sucursal:</strong> {{ item.barbero.sucursal_principal.nombre }}</p>
+        <p>
+          <strong>Valoración:</strong>
+          <span style="color:#ffc107;font-size:1.2em;">
+            {% for i in "12345" %}
+              {% if forloop.counter <= item.promedio %}★{% else %}☆{% endif %}
+            {% endfor %}
+          </span>
+          ({{ item.promedio }}/5 - {{ item.total_valoraciones }} reseñas)
+        </p>
+        {% if filtros.sucursal_id and filtros.servicio_id %}
+          <a class="bf-btn" href="{% url 'scheduling:seleccionar_barbero_fecha' filtros.sucursal_id filtros.servicio_id %}?barbero={{ item.barbero.id }}">
+            Agendar Cita
+          </a>
+        {% else %}
+          <button class="bf-btn bf-btn--disabled" disabled>Selecciona sucursal y servicio</button>
+        {% endif %}
+        <a class="bf-link" href="{% url 'scheduling:valoraciones_barbero' item.barbero.id %}">Ver Reseñas</a>
+      </div>
+      {% empty %}
+      <p class="bf-empty">No se encontraron barberos con esos criterios.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
