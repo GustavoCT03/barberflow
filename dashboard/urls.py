@@ -36,6 +36,7 @@ urlpatterns = [
     path("admin/barberos/<int:barbero_id>/toggle/", views.barbero_toggle_activo, name="barbero_toggle_activo"),
     path("admin/invitaciones/nueva/", views.crear_invitacion_barbero, name="crear_invitacion_barbero"),
     path("barbero/crear/", views.barbero_crear, name="barbero_crear"),
+    path('exportar-agenda/', views.exportar_agenda_ical, name='exportar_agenda'),
 
     
     # Servicios
