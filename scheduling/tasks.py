@@ -128,3 +128,53 @@ def marcar_no_show_citas():
         for cita in qs.select_for_update():
             cita.marcar_no_show()
     return f"no_show={total}"
+@shared_task
+def enviar_recordatorios_24h():
+    """HU35: Recordatorios 24 horas antes"""
+    from django.core.mail import send_mail
+    from django.conf import settings
+    
+    ahora = timezone.now()
+    inicio = ahora + timedelta(hours=24)
+    fin = inicio + timedelta(minutes=30)
+    
+    citas = Cita.objects.filter(
+        fecha_hora__gte=inicio,
+        fecha_hora__lte=fin,
+        recordatorio_24h_enviado=False,
+        estado__in=[Cita.Estado.PENDIENTE, Cita.Estado.CONFIRMADA],
+    ).select_related('cliente', 'barbero', 'servicio', 'sucursal')
+    
+    enviados = 0
+    for cita in citas:
+        from .utils import firmar
+        token_cancelar = firmar(f"cita:{cita.id}:cancelar")
+        enlace_cancelar = f"{settings.SITE_URL}/scheduling/cancelar/{token_cancelar}/"
+        
+        send_mail(
+            subject="📅 Recordatorio: Tu cita mañana",
+            message=f"""Hola {cita.cliente.nombre},
+
+Te recordamos tu cita para mañana:
+📅 Fecha: {cita.fecha_hora.strftime('%d/%m/%Y')}
+🕐 Hora: {cita.fecha_hora.strftime('%H:%M')}
+💈 Barbero: {cita.barbero.nombre}
+📍 Sucursal: {cita.sucursal.nombre} - {cita.sucursal.direccion}
+✂️ Servicio: {cita.servicio.nombre}
+💰 Precio: ${cita.precio}
+
+Si necesitas cancelar: {enlace_cancelar}
+
+¡Te esperamos!
+BarberFlow
+""",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[cita.cliente.email],
+            fail_silently=True,
+        )
+        
+        cita.recordatorio_24h_enviado = True
+        cita.save(update_fields=['recordatorio_24h_enviado'])
+        enviados += 1
+    
+    return f"recordatorios_24h={enviados}"

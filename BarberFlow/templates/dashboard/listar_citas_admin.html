@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="mb-3">Citas programadas</h2>
+    <div class="mb-3">
+    <a href="{% url 'panel_admin_barberia' %}" class="btn btn-outline-secondary">
+        ← Volver al Panel de Administración
+    </a>
+</div>
+
+    <p class="text-muted">Filtra por fecha o barbero. Si no aplicas filtros se muestra toda la agenda.</p>
+
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label class="form-label">Fecha</label>
+            {{ form.fecha }}
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">Barbero</label>
+            {{ form.barbero }}
+        </div>
+
+        <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary me-2">Aplicar</button>
+            <a href="{% url 'listar_citas_admin' %}" class="btn btn-secondary">Limpiar</a>
+        </div>
+    </form>
+
+    {% if citas %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>Barbero</th>
+                        <th>Cliente</th>
+                        <th>Servicio</th>
+                        <th>Sucursal</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for cita in citas %}
+                    <tr>
+                        <td>{{ cita.fecha_hora|date:"d/m/Y H:i" }}</td>
+                        <td>{{ cita.barbero.nombre }}</td>
+                        <td>{{ cita.cliente.nombre }}</td>
+                        <td>{{ cita.servicio.nombre }}</td>
+                        <td>{{ cita.sucursal.nombre }}</td>
+                        <td>{{ cita.get_estado_display }}</td>
+                    <td>
+            <a href="{% url 'reagendar_cita' cita.id %}" class="btn btn-sm btn-warning">
+                Reagendar
+            </a>
+
+            <a href="{% url 'cancelar_cita' cita.id %}" class="btn btn-sm btn-danger">
+                Cancelar
+            </a>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No hay citas con los filtros aplicados.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+✂️ BarberFlow - Recordatorio de Cita
+
+Hola {{ cliente_nombre }},
+
+⏰ RECORDATORIO: Tienes una cita mañana en BarberFlow.
+
+DETALLES DE TU CITA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 Fecha:          {{ fecha }}
+🕐 Hora:           {{ hora }}
+✂️ Barbero:        {{ barbero }}
+💈 Servicio:       {{ servicio }}
+💰 Precio:         {{ precio }}
+📍 Sucursal:       {{ sucursal }}
+🏢 Dirección:      {{ sucursal_direccion }}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NOTA IMPORTANTE:
+Si necesitas cancelar o reprogramar, por favor hazlo con al menos 
+2 horas de anticipación.
+
+¡Te esperamos!
+
+───────────────────────────────────────────────────────────────
+Este es un correo automático. Por favor no respondas a este mensaje.
+© 2025 BarberFlow. Todos los derechos reservados.

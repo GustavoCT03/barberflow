@@ -27,13 +27,13 @@ def servicio_list(request):
         messages.error(request, "No se encontró tu barbería asociada.")
         return redirect("panel_admin_barberia")
 
-    servicios = Servicio.objects.filter(nosotros=nosotros).order_by("-activo", "nombre")
+    servicios = Servicio.objects.filter(barberia__nosotros=nosotros).order_by("-activo", "nombre")
     
     context = {
         "servicios": servicios,
         "nosotros": nosotros,
     }
-    return render(request, "dashboard/servicios/servicio_list.html", context)
+    return render(request, "dashboard/servicio_list.html", context)
 
 
 # ============================================================
@@ -42,9 +42,6 @@ def servicio_list(request):
 @login_required
 @role_required(User.Roles.ADMIN_BARBERIA)
 def servicio_crear(request):
-    """
-    Crea un nuevo servicio para la barbería.
-    """
     nosotros = get_nosotros_from_user(request.user)
     if not nosotros:
         messages.error(request, "No se encontró tu barbería asociada.")
@@ -53,7 +50,8 @@ def servicio_crear(request):
     form = ServicioForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         servicio = form.save(commit=False)
-        servicio.nosotros = nosotros
+        # Asigna la barbería correctamente
+        servicio.barberia = nosotros.barberias.first()  # O ajusta según tu modelo
         servicio.save()
         messages.success(request, f"Servicio '{servicio.nombre}' creado con éxito.")
         return redirect("servicio_list")
@@ -63,7 +61,7 @@ def servicio_crear(request):
         "modo": "crear",
         "titulo": "Crear Nuevo Servicio",
     }
-    return render(request, "dashboard/servicios/servicio_form.html", context)
+    return render(request, "dashboard/servicio_form.html", context)
 
 
 # ============================================================
@@ -80,7 +78,7 @@ def servicio_editar(request, servicio_id):
         messages.error(request, "No se encontró tu barbería asociada.")
         return redirect("panel_admin_barberia")
 
-    servicio = get_object_or_404(Servicio, id=servicio_id, nosotros=nosotros)
+    servicio = get_object_or_404(Servicio, id=servicio_id, barberia__nosotros=nosotros)
     form = ServicioForm(request.POST or None, instance=servicio)
     
     if request.method == "POST" and form.is_valid():
@@ -94,7 +92,7 @@ def servicio_editar(request, servicio_id):
         "titulo": f"Editar Servicio: {servicio.nombre}",
         "servicio": servicio,
     }
-    return render(request, "dashboard/servicios/servicio_form.html", context)
+    return render(request, "dashboard/servicio_form.html", context)
 
 
 # ============================================================
@@ -111,7 +109,7 @@ def servicio_eliminar(request, servicio_id):
         messages.error(request, "No se encontró tu barbería asociada.")
         return redirect("panel_admin_barberia")
 
-    servicio = get_object_or_404(Servicio, id=servicio_id, nosotros=nosotros)
+    servicio = get_object_or_404(Servicio, id=servicio_id, barberia__nosotros=nosotros)
     
     if request.method == "POST":
         nombre = servicio.nombre
@@ -122,7 +120,7 @@ def servicio_eliminar(request, servicio_id):
     context = {
         "servicio": servicio,
     }
-    return render(request, "dashboard/servicios/servicio_confirm_delete.html", context)
+    return render(request, "dashboard/servicio_confirm_delete.html", context)
 
 
 # ============================================================
@@ -139,7 +137,7 @@ def servicio_toggle_activo(request, servicio_id):
         messages.error(request, "No se encontró tu barbería asociada.")
         return redirect("panel_admin_barberia")
 
-    servicio = get_object_or_404(Servicio, id=servicio_id, nosotros=nosotros)
+    servicio = get_object_or_404(Servicio, id=servicio_id, barberia__nosotros=nosotros)
     servicio.activo = not servicio.activo
     servicio.save()
     

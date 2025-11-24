@@ -52,6 +52,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -78,6 +79,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'BarberFlow.wsgi.application'
+ASGI_APPLICATION = 'BarberFlow.asgi.application'
 
 
 # Database
@@ -113,7 +115,14 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+from django.utils.translation import gettext_lazy as _
+
+LANGUAGE_CODE = 'es'
+
+LANGUAGES = [
+    ('es', _('Español')),
+    ('en', _('English')),
+]
 TIME_ZONE = 'America/Santiago'
 USE_I18N = True
 USE_TZ = True
@@ -158,12 +167,19 @@ LOGIN_REDIRECT_URL = '/route/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 # Email (para notificaciones); en dev usa consola:
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-SITE_URL = "http://localhost:8000"  # Cambiar en producción
-ASGI_APPLICATION = 'BarberFlow.asgi.application'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_HOST_USER = "barberflow125@gmail.com"
+EMAIL_HOST_PASSWORD = "barber123#"
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer'  # Para desarrollo
     }
 }
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]

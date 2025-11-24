@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Completar cita</h2>
+
+    <p>
+        Cliente: <strong>{{ cita.client.name }}</strong><br>
+        Servicio: {{ cita.service.name }}<br>
+        Fecha: {{ cita.start_time }}
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <button class="btn btn-success">Marcar como completada</button>
+        <a href="{% url 'barber_dashboard' %}" class="btn btn-secondary">Volver</a>
+    </form>
+</div>
+{% endblock %}

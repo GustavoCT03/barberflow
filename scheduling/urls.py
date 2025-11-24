@@ -1,5 +1,8 @@
 from django.urls import path
 from . import views
+from dashboard.views import completar_cita
+from scheduling.views import marcar_cita_atendida
+
 
 app_name = 'scheduling'
 
@@ -18,4 +21,5 @@ urlpatterns = [
     path('historial/', views.historial_citas, name='historial_citas'),
     path('reprogramar/<int:cita_id>/', views.reprogramar_cita, name='reprogramar_cita'),
     path('buscar/', views.buscar_barberos, name='buscar_barberos'),
+    path('cita/<int:cita_id>/atender/', views.marcar_cita_atendida, name='marcar_cita_atendida'),
 ]

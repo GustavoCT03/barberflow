@@ -8,6 +8,8 @@ from datetime import date, timedelta
 import csv
 from django.http import HttpResponse
 from django.db import models
+from icalendar import Calendar, Event
+from django.http import HttpResponse
 
 from core.models import (
     Nosotros,
@@ -19,10 +21,16 @@ from core.models import (
 )
 from core.decorators import role_required
 from .forms import SucursalCreateForm, SucursalUpdateForm
-from scheduling.models import Cita  # ← AGREGA ESTA LÍNEA
+from scheduling.forms   import ReagendarCitaForm, CancelarCitaForm, CompletarCitaForm
+from scheduling.models import Cita,Promocion  # ← AGREGA ESTA LÍNEA
 from .forms_servicios import ServicioForm
 import json
 from django.db.models.functions import TruncDate
+from core.models import DiaExcepcional, HorarioDisponibilidad
+from .forms_filtros import FiltroCitasAdminForm
+
+
+
 
 
 # Helper: obtener la barbería (Nosotros) asociada al usuario
@@ -118,7 +126,41 @@ def panel_admin_barberia(request):
     }
     return render(request, "dashboard/admin_sucursal.html", context)
 
+def listar_citas_admin(request):
+    """
+    HU07: Vista para mostrar todas las citas de la barbería
+    con filtros por fecha y barbero.
+    """
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        messages.error(request, "No se encontró tu barbería asociada.")
+        return redirect("panel_admin_barberia")
 
+    # Base queryset
+    citas = (
+        Cita.objects.filter(barbero__nosotros=nosotros)
+        .select_related("cliente", "servicio", "barbero", "sucursal")
+        .order_by("fecha_hora")
+    )
+
+    # Form de filtros
+    form = FiltroCitasAdminForm(request.GET or None, nosotros=nosotros)
+
+    if form.is_valid():
+        fecha = form.cleaned_data.get("fecha")
+        barbero = form.cleaned_data.get("barbero")
+
+        if fecha:
+            citas = citas.filter(fecha_hora__date=fecha)
+
+        if barbero:
+            citas = citas.filter(barbero=barbero)
+
+    return render(
+        request,
+        "dashboard/listar_citas_admin.html",
+        {"citas": citas, "form": form}
+    )
 # Crear sucursal (Admin de barbería) con validación de licencia
 @login_required
 @role_required(User.Roles.ADMIN_BARBERIA)
@@ -234,18 +276,26 @@ def crear_invitacion_barbero(request):
 @login_required
 @role_required(User.Roles.ADMIN_BARBERIA)
 def barbero_crear(request):
+    """
+    Permite al administrador crear directamente un barbero,
+    sin esperar a que el barbero use la invitación.
+    """
+
     nosotros = get_nosotros_from_user(request.user)
     if not nosotros:
         messages.error(request, "No se encontró tu barbería asociada.")
         return redirect("panel_admin_barberia")
 
+    # Validaciones de licencia
     licencia = getattr(nosotros, "licencia", None)
     if not licencia:
         messages.error(request, "Tu barbería no tiene una licencia activa asignada.")
         return redirect("panel_admin_barberia")
+
     if not _licencia_activa(licencia):
         messages.error(request, "Tu licencia está vencida. Renueva para crear barberos.")
         return redirect("panel_admin_barberia")
+
     if not _puede_agregar_barbero(nosotros, licencia):
         max_b = getattr(licencia, "max_barberos", 0)
         messages.error(request, f"Límite de barberos alcanzado ({max_b}) para tu plan.")
@@ -258,28 +308,33 @@ def barbero_crear(request):
 
         if not email or not nombre:
             messages.error(request, "Nombre y email son obligatorios.")
-            return redirect("panel_admin_barberia")
+            return redirect("barbero_crear")
 
         if User.objects.filter(email=email).exists():
             messages.error(request, "Ya existe un usuario con ese email.")
-            return redirect("panel_admin_barberia")
+            return redirect("barbero_crear")
 
+        # Crear User
         user = User.objects.create_user(
             email=email,
             password=password,
             nombre=nombre,
             rol=User.Roles.BARBERO
         )
+
+        # Crear Barbero
         Barbero.objects.create(
             user=user,
             nosotros=nosotros,
             nombre=nombre,
             activo=True
         )
+
         messages.success(request, f"Barbero '{nombre}' creado con éxito.")
         return redirect("panel_admin_barberia")
 
     return render(request, "dashboard/barbero_form.html")
+
 
 
 # Activar/desactivar barbero (Admin de barbería) con validación al activar
@@ -588,25 +643,35 @@ def metricas_barberos(request):
     return render(request, 'dashboard/metricas_barberos.html', context)
 @login_required
 def marcar_no_show(request, cita_id):
-    """HU22: Marcar cita como no-show"""
-    cita = get_object_or_404(Cita, id=cita_id)
-    
-    try:
-        barbero = Barbero.objects.get(user=request.user)
-        if cita.barbero != barbero:
-            messages.error(request, "No tienes permiso para esta cita")
-            return redirect('panel_barbero')
-    except Barbero.DoesNotExist:
-        messages.error(request, "No eres un barbero registrado")
-        return redirect('home')
-    
-    if cita.estado in [Cita.Estado.CONFIRMADA, Cita.Estado.EN_PROCESO]:
-        cita.marcar_no_show()
-        messages.success(request, "Cita marcada como No-Show")
-    else:
-        messages.warning(request, "La cita no puede ser marcada como No-Show")
-    
-    return redirect('panel_barbero')
+    """HU22 — Marcar cita como No-Show (barbero)"""
+
+    # Obtener el barbero del usuario
+    barbero = getattr(request.user, "barbero", None)
+    if barbero is None:
+        messages.error(request, "No eres un barbero registrado.")
+        return redirect("home")
+
+    # Asegurar que la cita pertenece al barbero
+    cita = get_object_or_404(Cita, id=cita_id, barbero=barbero)
+
+    # Estados permitidos en tu flujo real (según tu panel)
+    estados_validos = [
+        Cita.Estado.PENDIENTE,
+        Cita.Estado.CONFIRMADA,
+        Cita.Estado.EN_PROCESO,
+    ]
+
+    if cita.estado not in estados_validos:
+        messages.warning(request, "No se puede marcar esta cita como No-Show.")
+        return redirect("panel_barbero")
+
+    # Marcar como no-show
+    cita.estado = Cita.Estado.NO_SHOW
+    cita.save()
+
+    messages.success(request, "Cita marcada correctamente como No-Show.")
+    return redirect("panel_barbero")
+
 @login_required
 @role_required(User.Roles.ADMIN_BARBERIA)
 def estadisticas_ingresos(request):
@@ -655,3 +720,251 @@ def estadisticas_ingresos(request):
         'promedio_diario': sum(montos) / dias if dias else 0
     }
     return render(request, 'dashboard/estadisticas_ingresos.html', context)
+@login_required
+@role_required(User.Roles.ADMIN_BARBERIA)
+def listar_promociones(request):
+    """HU32: Listar promociones"""
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        return redirect("panel_admin_barberia")
+    
+    promociones = Promocion.objects.filter(
+        barberia__nosotros=nosotros
+    ).order_by('-creado_en')
+    
+    return render(request, 'dashboard/promociones_list.html', {
+        'promociones': promociones
+    })
+
+@login_required
+@role_required(User.Roles.ADMIN_BARBERIA)
+def crear_promocion(request):
+    """HU32: Crear promoción"""
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        return redirect("panel_admin_barberia")
+    
+    if request.method == 'POST':
+        barberia = nosotros.barberias.first()
+        
+        promocion = Promocion.objects.create(
+            barberia=barberia,
+            nombre=request.POST['nombre'],
+            codigo=request.POST['codigo'].upper(),
+            tipo_descuento=request.POST['tipo_descuento'],
+            valor=request.POST['valor'],
+            fecha_inicio=request.POST['fecha_inicio'],
+            fecha_fin=request.POST['fecha_fin'],
+            usos_maximos=int(request.POST.get('usos_maximos', 0)),
+            monto_minimo=request.POST.get('monto_minimo', 0),
+            solo_nuevos_clientes='solo_nuevos' in request.POST
+        )
+        
+        servicios_ids = request.POST.getlist('servicios')
+        if servicios_ids:
+            promocion.servicios.set(servicios_ids)
+        
+        messages.success(request, f"Promoción '{promocion.nombre}' creada exitosamente")
+        return redirect('listar_promociones')
+    
+    servicios = Servicio.objects.filter(barberia__nosotros=nosotros)
+    return render(request, 'dashboard/promocion_form.html', {
+        'servicios': servicios
+    })
+@login_required
+def exportar_agenda_ical(request):
+    """HU37: Exportar agenda del barbero a iCal"""
+    try:
+        barbero = Barbero.objects.get(user=request.user)
+    except Barbero.DoesNotExist:
+        messages.error(request, "No eres un barbero registrado")
+        return redirect('panel_barbero')
+    
+    # Crear calendario
+    cal = Calendar()
+    cal.add('prodid', '-//BarberFlow//ES')
+    cal.add('version', '2.0')
+    cal.add('x-wr-calname', f'Agenda {barbero.nombre}')
+    
+    # Obtener citas próximas (30 días)
+    fecha_inicio = timezone.now()
+    fecha_fin = fecha_inicio + timedelta(days=30)
+    
+    citas = Cita.objects.filter(
+        barbero=barbero,
+        fecha_hora__gte=fecha_inicio,
+        fecha_hora__lte=fecha_fin,
+        estado__in=[Cita.Estado.PENDIENTE, Cita.Estado.CONFIRMADA]
+    ).select_related('cliente', 'servicio', 'sucursal')
+    
+    for cita in citas:
+        event = Event()
+        event.add('summary', f'{cita.servicio.nombre} - {cita.cliente.nombre}')
+        event.add('dtstart', cita.fecha_hora)
+        event.add('dtend', cita.fecha_hora + timedelta(minutes=cita.servicio.duracion_minutos))
+        event.add('location', f'{cita.sucursal.nombre}, {cita.sucursal.direccion}')
+        
+        event.add('uid', f'cita-{cita.id}@barberflow.com')
+        event.add('status', 'CONFIRMED')
+        
+        cal.add_component(event)
+    
+    response = HttpResponse(cal.to_ical(), content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="agenda_{barbero.nombre}_{fecha_inicio.date()}.ics"'
+    
+    return response
+@login_required
+@role_required(User.Roles.ADMIN_BARBERIA)
+def gestionar_dias_excepcionales(request):
+    """HU40: Gestionar días festivos/excepcionales"""
+    nosotros = get_nosotros_from_user(request.user)
+    if not nosotros:
+        return redirect("panel_admin_barberia")
+    
+    sucursales = Sucursal.objects.filter(barberia__nosotros=nosotros)
+    
+    if request.method == 'POST':
+        from core.models import DiaExcepcional
+        
+        DiaExcepcional.objects.create(
+            sucursal_id=request.POST['sucursal'],
+            fecha=request.POST['fecha'],
+            tipo=request.POST['tipo'],
+            hora_apertura=request.POST.get('hora_apertura') or None,
+            hora_cierre=request.POST.get('hora_cierre') or None,
+            motivo=request.POST.get('motivo', '')
+        )
+        messages.success(request, "Día excepcional registrado")
+        return redirect('gestionar_dias_excepcionales')
+    
+    excepciones = DiaExcepcional.objects.filter(
+        sucursal__barberia__nosotros=nosotros,
+        fecha__gte=timezone.now().date()
+    ).order_by('fecha')
+    
+    return render(request, 'dashboard/dias_excepcionales.html', {
+        'sucursales': sucursales,
+        'excepciones': excepciones
+    })
+from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib import messages
+from django.core.mail import send_mail
+from scheduling.models import Cita
+from scheduling.forms import ReagendarCitaForm, CancelarCitaForm
+
+
+def reagendar_cita(request, cita_id):
+    cita = get_object_or_404(Cita, id=cita_id)
+
+    if request.method == 'POST':
+        form = ReagendarCitaForm(request.POST, instance=cita)
+        if form.is_valid():
+            form.save()
+
+            # Notificación vía email
+            send_mail(
+                'Tu cita fue reagendada',
+                f'Hola {cita.cliente.nombre},\n\n'
+                f'Tu cita ha sido reagendada para: {cita.fecha_hora}.\n'
+                f'Barbería: {cita.sucursal.nombre}\n\n'
+                f'— BarberFlow',
+                'barberflow@system.com',
+                [cita.cliente.email],
+                fail_silently=True
+            )
+
+            messages.success(request, "Cita reagendada correctamente.")
+            return redirect('listar_citas_admin')
+    else:
+        form = ReagendarCitaForm(instance=cita)
+
+    return render(request, 'citas/reagendar_cita.html', {
+        'form': form,
+        'cita': cita
+    })
+
+
+def cancelar_cita(request, cita_id):
+    cita = get_object_or_404(Cita, id=cita_id)
+
+    if request.method == 'POST':
+        form = CancelarCitaForm(request.POST, instance=cita)
+        if form.is_valid():
+            cita.estado = 'CANCELADA'
+            form.save()
+
+            # Notificación al cliente
+            send_mail(
+                'Tu cita ha sido cancelada',
+                f'Hola {cita.cliente.nombre},\n\n'
+                f'Tu cita del {cita.fecha_hora} ha sido cancelada.\n'
+                f'Motivo: {cita.motivo_cancelacion}\n\n'
+                f'— BarberFlow',
+                'barberflow@system.com',
+                [cita.cliente.email],
+                fail_silently=True
+            )
+
+            messages.success(request, "Cita cancelada correctamente.")
+            return redirect('listar_citas_admin')
+    else:
+        form = CancelarCitaForm(instance=cita)
+
+    return render(request, 'citas/cancelar_cita.html', {
+        'form': form,
+        'cita': cita
+    })
+def completar_cita(request, cita_id):
+    cita = get_object_or_404(Cita, id=cita_id)
+
+    if cita.barber.user != request.user:
+        messages.error(request, "No tienes permiso para completar esta cita.")
+        return redirect('barber_dashboard')
+
+    if request.method == 'POST':
+        form = CompletarCitaForm(request.POST, instance=cita)
+        if form.is_valid():
+            cita.status = "COMPLETED"
+            form.save()
+
+            puntos = max(5, cita.service.price // 1000)
+            cita.client.points += puntos
+            cita.client.save()
+
+            messages.success(request, f"Cita completada. +{puntos} puntos otorgados.")
+            return redirect('barber_dashboard')
+
+    else:
+        form = CompletarCitaForm(instance=cita)
+
+    return render(request, 'dashboard/citas/completar_cita.html', {
+        'cita': cita,
+        'form': form
+    })
+def completar_cita(request, cita_id):
+    cita = get_object_or_404(Cita, id=cita_id)
+
+    if cita.barber.user != request.user:
+        messages.error(request, "No tienes permiso para completar esta cita.")
+        return redirect('barber_dashboard')
+
+    if request.method == 'POST':
+        form = CompletarCitaForm(request.POST, instance=cita)
+        if form.is_valid():
+            cita.status = "COMPLETED"
+            form.save()
+
+            puntos = max(5, cita.service.price // 1000)
+            cita.client.points += puntos
+            cita.client.save()
+
+            messages.success(request, f"Cita completada. +{puntos} puntos otorgados.")
+            return redirect('barber_dashboard')
+
+    else:
+        form = CompletarCitaForm(instance=cita)
+
+    return render(request, 'dashboard/citas/completar_cita.html', {
+        'cita': cita,
+        'form': form
+    })

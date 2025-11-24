@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Disponibilidad semanal{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Disponibilidad semanal</h2>
+    <a href="{% url 'scheduling_disponibilidad:disponibilidad_create' %}" class="btn btn-success mb-3">+ Nueva Disponibilidad</a>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Día</th>
+                <th>Hora inicio</th>
+                <th>Hora fin</th>
+                <th>Activo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in disponibilidades %}
+            <tr>
+                <td>{{ d.get_dia_semana_display }}</td>
+                <td>{{ d.hora_inicio|time:"H:i" }}</td>
+                <td>{{ d.hora_fin|time:"H:i" }}</td>
+                <td>{{ d.activo|yesno:"Sí,No" }}</td>
+                <td>
+                    <a href="{% url 'scheduling_disponibilidad:disponibilidad_update' d.pk %}" class="btn btn-sm btn-primary">Editar</a>
+                    <a href="{% url 'scheduling_disponibilidad:disponibilidad_delete' d.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No tienes disponibilidades registradas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

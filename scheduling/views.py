@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from django.db import models
 from core.models import Barberia, Sucursal, Servicio, Barbero, HorarioDisponibilidad
 from .models import Cita, Valoracion, WaitlistEntry
@@ -12,6 +12,10 @@ from .utils import enviar_notificacion
 from django.db import transaction
 from django.db.models import Avg, Count, Sum, Q
 from django.contrib import messages
+from core.models import ProgramaFidelidad, HistorialPuntos
+from django.core.mail import send_mail
+from .models import Cita
+from .forms import ReagendarCitaForm, CancelarCitaForm
 @login_required
 def seleccionar_barberia(request):
     barberias = Barberia.objects.filter(activa=True)
@@ -58,46 +62,64 @@ def seleccionar_barbero_fecha(request, sucursal_id, servicio_id):
     })
 
 def obtener_slots_disponibles(barbero, fecha_str, duracion_minutos):
-    """HU24: Slots dinámicos sin solapamiento"""
+    """HU24 + HU40: Slots dinámicos, sin solapamiento y con días excepcionales"""
+    from core.models import DiaExcepcional, HorarioDisponibilidad
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+
     fecha = datetime.fromisoformat(fecha_str).date()
     dia_semana = fecha.weekday()
-    
+
     # Validar que no sea una fecha pasada
     if fecha < timezone.now().date():
         return []
-    
-    disponibilidades = HorarioDisponibilidad.objects.filter(
-        barbero=barbero, 
-        dia_semana=dia_semana, 
-        activo=True
-    ).order_by('hora_inicio')
-    
-    if not disponibilidades.exists():
+
+    # Verificar si hay excepción para ese día
+    excepcion = DiaExcepcional.objects.filter(
+        sucursal=barbero.sucursal_principal,
+        fecha=fecha
+    ).first()
+
+    if excepcion:
+        if excepcion.tipo == DiaExcepcional.TipoExcepcion.CERRADO:
+            return []  # No hay slots disponibles
+        # Usar horario especial
+        disponibilidades = [
+            type('obj', (object,), {
+                'hora_inicio': excepcion.hora_apertura,
+                'hora_fin': excepcion.hora_cierre
+            })
+        ]
+    else:
+        # Horario normal
+        disponibilidades = HorarioDisponibilidad.objects.filter(
+            barbero=barbero,
+            dia_semana=dia_semana,
+            activo=True
+        ).order_by('hora_inicio')
+
+    if not disponibilidades:
         return []
-    
+
     slots = []
     intervalo = timedelta(minutes=30)  # Slots cada 30 min
-    
+
     for disp in disponibilidades:
         hora_actual = timezone.make_aware(datetime.combine(fecha, disp.hora_inicio))
         hora_fin = timezone.make_aware(datetime.combine(fecha, disp.hora_fin))
-        
+
         while hora_actual + timedelta(minutes=duracion_minutos) <= hora_fin:
-            # Validar que no haya citas en ese slot ni overlapping
             hora_fin_servicio = hora_actual + timedelta(minutes=duracion_minutos)
-            
             conflicto = Cita.objects.filter(
                 barbero=barbero,
                 estado__in=[Cita.Estado.PENDIENTE, Cita.Estado.CONFIRMADA],
-                fecha_hora__lt=hora_fin_servicio,  # Termina después de que empieza este slot
-                fecha_hora__gte=hora_actual - timedelta(minutes=duracion_minutos)  # Empieza antes de que termina este slot
+                fecha_hora__lt=hora_fin_servicio,
+                fecha_hora__gte=hora_actual - timedelta(minutes=duracion_minutos)
             ).exists()
-            
             if not conflicto and hora_actual >= timezone.now():
                 slots.append(hora_actual.time())
-            
             hora_actual += intervalo
-    
+
     return slots
 
 @login_required
@@ -107,6 +129,7 @@ def confirmar_reserva(request, sucursal_id, servicio_id, barbero_id):
         return redirect('scheduling:seleccionar_barberia')
 
     fecha_hora_str = request.POST.get('fecha_hora')
+    codigo_promocion = request.POST.get('codigo_promocion', '').strip()
     if not fecha_hora_str:
         messages.error(request, "Falta fecha/hora")
         return redirect('scheduling:seleccionar_barberia')
@@ -148,6 +171,44 @@ def confirmar_reserva(request, sucursal_id, servicio_id, barbero_id):
                 precio=servicio.precio
             )
 
+            descuento_aplicado = 0
+            if codigo_promocion:
+                try:
+                    from core.models import Promocion
+                    
+                    promocion = Promocion.objects.get(
+                        codigo=codigo_promocion,
+                        barberia=sucursal.barberia,
+                        activa=True
+                    )
+                    
+                    valida, msg = promocion.es_valida(
+                        cliente=request.user,
+                        servicio=servicio,
+                        monto=cita.precio
+                    )
+                    
+                    if valida:
+                        descuento = promocion.calcular_descuento(cita.precio)
+                        cita.descuento_aplicado = descuento
+                        cita.precio = max(0, cita.precio - descuento)
+                        cita.promocion = promocion
+                        cita.save(update_fields=['descuento_aplicado', 'precio', 'promocion'])
+                        
+                        promocion.usos_actuales += 1
+                        promocion.save(update_fields=['usos_actuales'])
+                        
+                        descuento_aplicado = descuento
+                        messages.success(
+                            request, 
+                            f"✓ Descuento aplicado: ${descuento:,.0f} ({promocion.nombre})"
+                        )
+                    else:
+                        messages.warning(request, f"⚠️ Promoción no válida: {msg}")
+                        
+                except Promocion.DoesNotExist:
+                    messages.error(request, "❌ Código de promoción no encontrado")
+
             # HU25: Notificación tiempo real al barbero
             enviar_notificacion(
                 user_id=barbero.user_id,
@@ -155,17 +216,37 @@ def confirmar_reserva(request, sucursal_id, servicio_id, barbero_id):
                 mensaje=f'Nueva cita {servicio.nombre} con {request.user.nombre} el {fecha_hora.strftime("%d/%m %H:%M")}',
                 data={'cita_id': cita.id, 'fecha': fecha_hora.isoformat()}
             )
+            precio_final = cita.precio
+            if descuento_aplicado > 0:
+                messages.success(
+                    request, 
+                    f'✅ Cita reservada para {fecha_hora.strftime("%d/%m/%Y %H:%M")}. '
+                    f'Precio final: ${precio_final:,.0f} (Descuento: ${descuento_aplicado:,.0f})'
+                )
+            else:
+                messages.success(
+                    request, 
+                    f'✅ Cita reservada para {fecha_hora.strftime("%d/%m/%Y %H:%M")}. '
+                    f'Precio: ${precio_final:,.0f}'
+                )
 
-        messages.success(request, f'Cita reservada para {fecha_hora.strftime("%d/%m/%Y %H:%M")}')
+        
     except Exception as e:
-        messages.error(request, f'Error al reservar: {e}')
+         messages.error(request, f'❌ Error al reservar: {str(e)}')
+
 
     return redirect('scheduling:mis_citas')
 
 @login_required
 def mis_citas(request):
-    citas = Cita.objects.filter(cliente=request.user).select_related('barbero__user', 'servicio', 'sucursal').order_by('-fecha_hora')
-    return render(request, 'scheduling/mis_citas.html', {'citas': citas})
+    citas = Cita.objects.filter(cliente=request.user).select_related('sucursal','barbero','servicio','promocion').order_by('-fecha_hora')
+    sucursales = {}
+    for c in citas:
+        sucursales[c.sucursal_id] = c.sucursal
+    return render(request, 'mis_citas.html', {
+        'citas': citas,
+        'sucursales': sucursales.values()
+    })
 
 @login_required
 def cancelar_cita(request, cita_id):
@@ -403,3 +484,106 @@ def buscar_barberos(request):
     }
     return render(request, 'scheduling/buscar_barberos.html', context)
 # ...existing code...
+
+@login_required
+def canjear_puntos(request, barberia_id):
+    """HU42: Canjear puntos por descuento"""
+    try:
+        programa = ProgramaFidelidad.objects.get(barberia_id=barberia_id, activo=True)
+    except ProgramaFidelidad.DoesNotExist:
+        messages.error(request, "Esta barbería no tiene programa de fidelidad")
+        return redirect('panel_cliente')
+    
+    saldo_puntos = request.user.obtener_puntos(barberia_id)
+    
+    if request.method == 'POST':
+        puntos_a_canjear = int(request.POST.get('puntos', 0))
+        
+        if puntos_a_canjear < programa.minimo_canje:
+            messages.error(request, f"Mínimo {programa.minimo_canje} puntos para canjear")
+        elif puntos_a_canjear > saldo_puntos:
+            messages.error(request, "Puntos insuficientes")
+        else:
+            exito, nuevo_saldo = request.user.canjear_puntos(barberia_id, puntos_a_canjear)
+            
+            if exito:
+                valor_descuento = float(puntos_a_canjear) * float(programa.pesos_por_punto)
+                # Guardar en sesión para usar en próxima cita
+                request.session['descuento_puntos'] = {
+                    'puntos': puntos_a_canjear,
+                    'valor': valor_descuento,
+                    'barberia_id': barberia_id
+                }
+                messages.success(request, f"¡Canjeaste {puntos_a_canjear} puntos por ${valor_descuento:.2f} de descuento!")
+                return redirect('scheduling:seleccionar_barberia')
+    
+    context = {
+        'programa': programa,
+        'saldo_puntos': saldo_puntos,
+        'valor_total': float(saldo_puntos) * float(programa.pesos_por_punto),
+        'historial': HistorialPuntos.objects.filter(
+            cliente=request.user,
+            barberia_id=barberia_id
+        )[:10]
+    }
+    return render(request, 'scheduling/canjear_puntos.html', context)
+def marcar_cita_atendida(request, cita_id):
+    cita = get_object_or_404(Cita, id=cita_id, barbero=request.user.barbero)
+
+    if request.method == 'POST':
+        nota = request.POST.get('nota_interna', '').strip()
+
+        cita.estado = 'COMPLETADA'
+        cita.nota_interna = nota
+        cita.fecha_atendida = timezone.now()
+        cita.save()
+
+        # Otorgar puntos de fidelidad
+        try:
+            programa = ProgramaFidelidad.objects.get(barberia=cita.sucursal.barberia)
+            puntos = cita.servicio.precio * programa.factor_puntos
+
+            HistorialPuntos.objects.create(
+                cliente=cita.cliente,
+                barberia=cita.sucursal.barberia,
+                puntos=puntos,
+                motivo=f"Cita completada: {cita.servicio.nombre}"
+            )
+        except ProgramaFidelidad.DoesNotExist:
+            pass
+
+        messages.success(request, "Cita marcada como atendida.")
+        return redirect('panel_barbero')
+
+    return render(request, 'scheduling/marcar_cita_atendida.html', {'cita': cita})
+@login_required
+def marcar_no_show(request, cita_id):
+    """HU22 — Marcar cita como No-Show (barbero)"""
+
+    # Obtener el barbero del usuario
+    barbero = getattr(request.user, "barbero", None)
+    if barbero is None:
+        messages.error(request, "No eres un barbero registrado.")
+        return redirect("home")
+
+    # Asegurar que la cita pertenece al barbero
+    cita = get_object_or_404(Cita, id=cita_id, barbero=barbero)
+
+    # Estados permitidos en tu flujo real (según tu panel)
+    estados_validos = [
+        Cita.Estado.PENDIENTE,
+        Cita.Estado.CONFIRMADA,
+        Cita.Estado.EN_PROCESO,
+    ]
+
+    if cita.estado not in estados_validos:
+        messages.warning(request, "No se puede marcar esta cita como No-Show.")
+        return redirect("panel_barbero")
+
+    # Marcar como no-show
+    cita.estado = Cita.Estado.NO_SHOW
+    cita.save()
+
+    messages.success(request, "Cita marcada correctamente como No-Show.")
+    return redirect("panel_barbero")
+

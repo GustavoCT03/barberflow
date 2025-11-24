@@ -3,6 +3,7 @@ from dashboard import views
 from dashboard import views_servicios
 from django.urls import include
 
+
 urlpatterns = [
     # Paneles
     path("licencias/", views.panel_licencias, name="panel_licencias"),
@@ -15,6 +16,14 @@ urlpatterns = [
     path('cita/<int:cita_id>/completar/', views.marcar_cita_completada, name='marcar_cita_completada'),
     path('cita/<int:cita_id>/no-show/', views.marcar_no_show, name='marcar_no_show'),
     path('estadisticas/ingresos/', views.estadisticas_ingresos, name='estadisticas_ingresos'),
+    path("admin/citas/", views.listar_citas_admin, name="listar_citas_admin"),
+    path('cita/<int:cita_id>/reagendar/', views.reagendar_cita, name='reagendar_cita'),
+    path('cita/<int:cita_id>/cancelar/', views.cancelar_cita, name='cancelar_cita'),
+    path('cita/<int:cita_id>/completar/', views.completar_cita, name='completar_cita'),
+    
+
+    
+    
     # Barbero acciones
     
     # Sucursales
@@ -26,6 +35,8 @@ urlpatterns = [
     path("admin/barberos/crear/", views.barbero_crear, name="barbero_crear"),
     path("admin/barberos/<int:barbero_id>/toggle/", views.barbero_toggle_activo, name="barbero_toggle_activo"),
     path("admin/invitaciones/nueva/", views.crear_invitacion_barbero, name="crear_invitacion_barbero"),
+    path("barbero/crear/", views.barbero_crear, name="barbero_crear"),
+
     
     # Servicios
     path("admin/servicios/", views_servicios.servicio_list, name="servicio_list"),

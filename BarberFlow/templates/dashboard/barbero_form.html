@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Crear Barbero · BarberFlow{% endblock %}
+
+{% block content %}
+<section class="bf-section">
+  <div class="bf-container">
+    <div class="bf-panel" style="max-width: 500px; margin: auto;">
+
+      <h2 class="bf-panel__title">Crear Barbero</h2>
+
+      <form class="bf-form" method="post">
+        {% csrf_token %}
+
+        <label>Nombre completo</label>
+        <input type="text" name="nombre" required placeholder="Juan Pérez">
+
+        <label>Email</label>
+        <input type="email" name="email" required placeholder="barbero@ejemplo.com">
+
+        <label>Contraseña (opcional)</label>
+        <input type="password" name="password" placeholder="Si se deja vacío, se genera una automática">
+
+        <button class="bf-btn" type="submit">Crear Barbero</button>
+        <a class="bf-btn bf-btn--secondary" href="{% url 'panel_admin_barberia' %}">
+          Cancelar
+        </a>
+      </form>
+
+    </div>
+  </div>
+</section>
+{% endblock %}

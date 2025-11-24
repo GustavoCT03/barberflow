@@ -3,6 +3,9 @@ from django.conf import settings
 from core.models import Barbero, Sucursal, Servicio
 from datetime import datetime, timedelta
 from django.utils import timezone
+from django.contrib import admin
+from decimal import Decimal
+from django.core.exceptions import ValidationError
 class Promocion(models.Model):
     class TipoDescuento(models.TextChoices):
         PORCENTAJE = 'porcentaje', 'Porcentaje'
@@ -90,6 +93,7 @@ class Cita(models.Model):
     promocion = models.ForeignKey(Promocion, on_delete=models.SET_NULL, null=True, blank=True, related_name='citas')
     descuento_aplicado = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
+
     confirmada_en = models.DateTimeField(null=True, blank=True)
     cancelado_en = models.DateTimeField(null=True, blank=True)
     motivo_cancelacion = models.CharField(max_length=150, blank=True)
@@ -101,6 +105,10 @@ class Cita(models.Model):
 
     creada_en = models.DateTimeField(auto_now_add=True)
     actualizada_en = models.DateTimeField(auto_now=True)
+    recordatorio_24h_enviado = models.BooleanField(default=False)
+    motivo_cancelacion = models.TextField(null=True, blank=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+    nota_interna = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = 'scheduling_cita'
@@ -113,17 +121,124 @@ class Cita(models.Model):
 
     def __str__(self):
         return f"Cita {self.id} - {self.cliente.nombre} con {self.barbero.nombre}"
+    def debe_enviar_recordatorio(self):
+        """HU1: Verifica si debe enviarse recordatorio (24h antes)"""
+        ahora = timezone.now()
+        tiempo_hasta_cita = self.fecha_hora - ahora
+        
+        # Entre 23 y 25 horas antes
+        if timedelta(hours=23) <= tiempo_hasta_cita <= timedelta(hours=25):
+            # Verificar que no se haya enviado ya
+            from core.models import NotificacionEmail
+            ya_enviado = NotificacionEmail.objects.filter(
+                cita=self,
+                tipo=NotificacionEmail.TipoNotificacion.RECORDATORIO_CITA,
+                exitoso=True
+            ).exists()
+            
+            return not ya_enviado
+        
+        return False
+    
+    def obtener_datos_email_recordatorio(self):
+        """HU1: Obtiene datos formateados para el email de recordatorio"""
+        return {
+            'cliente_nombre': self.cliente.nombre,
+            'fecha': self.fecha_hora.strftime('%d/%m/%Y'),
+            'hora': self.fecha_hora.strftime('%H:%M'),
+            'barbero': self.barbero.nombre,
+            'servicio': self.servicio.nombre,
+            'precio': f"${self.precio:,.0f}",
+            'sucursal': self.sucursal.nombre,
+            'sucursal_direccion': self.sucursal.direccion,
+            'cita_id': self.id
+        }
 
     def puede_modificar(self):
         if self.estado not in [self.Estado.PENDIENTE, self.Estado.CONFIRMADA]:
             return False
         return (self.fecha_hora - timezone.now()) >= timedelta(hours=2)
 
-    def cancelar(self, por='cliente', motivo=''):
-        self.estado = self.Estado.CANCELADA_CLIENTE if por == 'cliente' else self.Estado.CANCELADA_ADMIN
-        self.motivo_cancelacion = motivo[:150]
-        self.cancelado_en = timezone.now()
-        self.save()
+    def puede_cancelar(self):
+        """HU2: Verifica si la cita puede ser cancelada (>2h anticipación)"""
+        if self.estado not in [self.Estado.PENDIENTE, self.Estado.CONFIRMADA]:
+            return False, "Solo puedes cancelar citas pendientes o confirmadas"
+        
+        ahora = timezone.now()
+        tiempo_restante = self.fecha_hora - ahora
+        
+        if tiempo_restante < timedelta(hours=2):
+            return False, "Debes cancelar con al menos 2 horas de anticipación"
+        
+        return True, "Puedes cancelar esta cita"
+    
+    def cancelar(self, usuario):
+        """HU2: Cancela la cita y registra en log"""
+        puede, mensaje = self.puede_cancelar()
+        
+        if not puede:
+            raise ValidationError(mensaje)
+        
+        self.estado = self.Estado.CANCELADA
+        self.save(update_fields=['estado'])
+        
+        # Registrar en log de actividad
+        from core.models import LogActividad
+        LogActividad.objects.create(
+            usuario=usuario,
+            accion=f"Canceló cita #{self.id}",
+            detalles=f"Cliente: {self.cliente.nombre}, Fecha: {self.fecha_hora}, Barbero: {self.barbero.nombre}"
+        )
+        
+        # Enviar email de confirmación
+        self._enviar_email_cancelacion()
+    
+    def _enviar_email_cancelacion(self):
+        """HU2: Envía email confirmando la cancelación"""
+        from django.core.mail import send_mail
+        from django.template.loader import render_to_string
+        from django.conf import settings
+        from core.models import NotificacionEmail
+        
+        context = {
+            'cliente_nombre': self.cliente.nombre,
+            'fecha': self.fecha_hora.strftime('%d/%m/%Y'),
+            'hora': self.fecha_hora.strftime('%H:%M'),
+            'barbero': self.barbero.nombre,
+            'servicio': self.servicio.nombre,
+            'sucursal': self.sucursal.nombre,
+            'cita_id': self.id
+        }
+        
+        try:
+            html_message = render_to_string('emails/cancelacion_cita.html', context)
+            plain_message = render_to_string('emails/cancelacion_cita.txt', context)
+            
+            send_mail(
+                subject=f'Cancelación confirmada - Cita #{self.id}',
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[self.cliente.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            
+            NotificacionEmail.objects.create(
+                destinatario=self.cliente,
+                cita=self,
+                tipo=NotificacionEmail.TipoNotificacion.CANCELACION_CITA,
+                asunto=f'Cancelación confirmada - Cita #{self.id}',
+                exitoso=True
+            )
+        except Exception as e:
+            NotificacionEmail.objects.create(
+                destinatario=self.cliente,
+                cita=self,
+                tipo=NotificacionEmail.TipoNotificacion.CANCELACION_CITA,
+                asunto=f'Cancelación confirmada - Cita #{self.id}',
+                exitoso=False,
+                error=str(e)
+            )
 
     def marcar_confirmada(self):
         if self.estado == self.Estado.PENDIENTE:

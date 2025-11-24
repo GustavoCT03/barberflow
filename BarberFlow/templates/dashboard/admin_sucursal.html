@@ -23,6 +23,9 @@
 
     <div class="bf-panel">
       <h2 class="bf-panel__title">Invitar barbero</h2>
+      <a class="bf-btn bf-btn--primary" href="{% url 'barbero_crear' %}">
+    Crear barbero manualmente
+</a>
       <form class="bf-form" method="post" action="{% url 'crear_invitacion_barbero' %}">
         {% csrf_token %}
         <label>Correo del barbero</label>
@@ -54,6 +57,13 @@
         {% endfor %}
       </ul>
     </div>
+    <div class="bf-panel">
+  <h2 class="bf-panel__title">Citas</h2>
+  <a class="bf-btn" href="{% url 'listar_citas_admin' %}">📅 Ver todas las citas</a>
+  <p class="bf-muted" style="margin-top: 0.5rem;">
+    Accede al panel completo de citas con filtros por <strong>fecha</strong> y <strong>barbero</strong>.
+  </p>
+</div>
 
     <div class="bf-panel">
       <h2 class="bf-panel__title">Métricas (últimos 7 días)</h2>

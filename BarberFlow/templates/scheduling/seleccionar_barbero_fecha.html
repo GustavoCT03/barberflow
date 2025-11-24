@@ -34,17 +34,19 @@
                     </div>
                 </div>
                 
-                {% if info.barbero.id in disponibilidad.keys %}
+                {% if info.slots %}
                     <h4>Horarios disponibles:</h4>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        {% for slot in info.slots %}
-                            <form method="post" action="{% url 'scheduling:confirmar_reserva' sucursal.id servicio.id info.barbero.id %}" style="display: inline;">
-                                {% csrf_token %}
+                    <form method="post" action="{% url 'scheduling:confirmar_reserva' sucursal.id servicio.id info.barbero.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <label for="codigo_promocion">Código de Promoción (opcional):</label>
+                        <input type="text" id="codigo_promocion" name="codigo_promocion" placeholder="Ingresa tu código aquí">
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            {% for slot in info.slots %}
                                 <input type="hidden" name="fecha_hora" value="{{ fecha_seleccionada }}T{{ slot|time:'H:i:s' }}">
                                 <button type="submit" class="slot-btn">{{ slot|time:'H:i' }}</button>
-                            </form>
-                        {% endfor %}
-                    </div>
+                            {% endfor %}
+                        </div>
+                    </form>
                 {% else %}
                     <p>No disponible este día</p>
                     <a class="btn btn-sm btn-outline-secondary"

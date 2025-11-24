@@ -1,4 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from core.decorators import role_required
+from core.models import User
+from core.models import Plan, Licencia, Nosotros
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from core.models import Plan, Licencia, Nosotros
 from core.decorators import role_required
@@ -64,3 +68,7 @@ def licencias_list(request):
 @role_required(User.Roles.SUPERADMIN)
 def barberias_list(request):
     return HttpResponse("Listado de barberías (pendiente)")
+
+@role_required(User.Roles.SUPERADMIN)
+def panel_principal(request):
+    return render(request, "superadmin/panel.html")

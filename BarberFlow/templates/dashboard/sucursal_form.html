@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ modo|title }} Sucursal{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>{{ modo|title }} Sucursal</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="bf-btn" type="submit">Guardar</button>
+        <a class="bf-btn" href="{% url 'panel_admin_barberia' %}">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

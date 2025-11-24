@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recordatorio de Cita - BarberFlow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .cita-details {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: bold;
+            color: #667eea;
+        }
+        .value {
+            color: #333;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+            color: #666;
+            font-size: 14px;
+        }
+        .alert {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✂️ BarberFlow</h1>
+        <p>Recordatorio de tu cita</p>
+    </div>
+    
+    <div class="content">
+        <h2>Hola {{ cliente_nombre }},</h2>
+        
+        <div class="alert">
+            <strong>⏰ Recordatorio:</strong> Tienes una cita mañana en BarberFlow.
+        </div>
+        
+        <div class="cita-details">
+            <h3>Detalles de tu Cita</h3>
+            
+            <div class="detail-row">
+                <span class="label">📅 Fecha:</span>
+                <span class="value">{{ fecha }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="label">🕐 Hora:</span>
+                <span class="value">{{ hora }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="label">✂️ Barbero:</span>
+                <span class="value">{{ barbero }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="label">💈 Servicio:</span>
+                <span class="value">{{ servicio }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="label">💰 Precio:</span>
+                <span class="value">{{ precio }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="label">📍 Sucursal:</span>
+                <span class="value">{{ sucursal }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="label">🏢 Dirección:</span>
+                <span class="value">{{ sucursal_direccion }}</span>
+            </div>
+        </div>
+        
+        <p style="margin-top: 20px;">
+            <strong>Nota importante:</strong> Si necesitas cancelar o reprogramar, 
+            por favor hazlo con al menos 2 horas de anticipación.
+        </p>
+        
+        <p>¡Te esperamos!</p>
+    </div>
+    
+    <div class="footer">
+        <p>Este es un correo automático. Por favor no respondas a este mensaje.</p>
+        <p>&copy; 2025 BarberFlow. Todos los derechos reservados.</p>
+    </div>
+</body>
+</html>

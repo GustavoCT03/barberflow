@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Marcar cita como atendida</h2>
+
+    <p><strong>Cliente:</strong> {{ cita.cliente.nombre }}</p>
+    <p><strong>Servicio:</strong> {{ cita.servicio.nombre }}</p>
+    <p><strong>Fecha:</strong> {{ cita.fecha_hora|date:"d/m/Y H:i" }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <label>Nota interna (opcional):</label>
+        <textarea name="nota_interna" class="form-control" rows="3"></textarea>
+
+        <button class="btn btn-success mt-3">Marcar como atendida</button>
+
+        <a href="{% url 'panel_barbero' %}" class="btn btn-secondary mt-3">Volver</a>
+    </form>
+</div>
+{% endblock %}

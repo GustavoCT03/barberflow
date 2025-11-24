@@ -2,145 +2,90 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Citas - BarberFlow</title>
+    <title>Seleccionar Barbero y Horario</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .cita-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 15px 0;
-            background: white;
-        }
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            margin-right: 10px;
-        }
-        .btn-primary {
-            background: #007bff;
-            color: white;
-        }
-        .btn-warning {
-            background: #ffc107;
-            color: #000;
-        }
-        .estado {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 0.9em;
-        }
-        .pendiente { background: #ffc107; }
-        .confirmada { background: #28a745; color: white; }
-        .completada { background: #6c757d; color: white; }
-        .cancelada { background: #dc3545; color: white; }
-        .alert {
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 5px;
-        }
-        .alert-success { background: #d4edda; color: #155724; }
-        .alert-error { background: #f8d7da; color: #721c24; }
+        body { font-family: Arial; max-width: 1200px; margin: 0 auto; padding: 20px; background:#f5f5f5; }
+        h1 { margin-top:0; }
+        .barbero-card { border: 1px solid #ddd; padding: 15px; margin: 12px 0; border-radius: 8px; background:#fff; }
+        .slot-btn { padding: 10px 15px; margin: 5px 0; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .slot-btn:hover { background: #0056b3; }
+        .rating { color: #ffc107; font-size: 1.0em; }
+        .promo-group { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+        .promo-group input { padding:6px 8px; border:1px solid #ccc; border-radius:4px; width:180px; }
+        .promo-group small { color:#666; font-size:12px; }
+        form.slot-form { display:inline-block; margin:4px 8px 4px 0; }
+        .slots-wrapper { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
+        .back-link { display:inline-block; margin-top:25px; }
+        .date-filter { background:#fff; padding:12px 16px; border-radius:8px; border:1px solid #ddd; margin-bottom:18px; }
+        button[type=submit].slot-btn { display:block; width:100%; }
+        .slot-form-inner { display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
     </style>
 </head>
 <body>
-    <h1>Mis Citas</h1>
-    <a class="btn btn-primary" href="{% url 'scheduling:historial_citas' %}">Ver Historial Completo</a>
+    <h1>{{ sucursal.nombre }} - {{ servicio.nombre }}</h1>
     
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">
-                {{ message }}
+    <form method="get" class="date-filter">
+        <label for="fecha">Fecha:</label>
+        <input id="fecha" type="date" name="fecha" value="{{ fecha_seleccionada }}" min="{{ fecha_seleccionada }}">
+        <button type="submit">Buscar disponibilidad</button>
+    </form>
+
+    <div>
+        {% for info in barberos_info %}
+            <div class="barbero-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0;">{{ info.barbero.nombre }}</h3>
+                    <div class="rating">
+                        {% if info.total > 0 %}
+                            ⭐ {{ info.promedio }}/5 ({{ info.total }} valoración{{ info.total|pluralize:"es" }})
+                        {% else %}
+                            <span style="color:#999;">Sin valoraciones</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if info.barbero.id in disponibilidad.keys %}
+                    <h4 style="margin-top:14px;">Horarios disponibles:</h4>
+                    <div class="slots-wrapper">
+                        {% for slot in info.slots %}
+                            <form method="post"
+                                  action="{% url 'scheduling:confirmar_reserva' sucursal.id servicio.id info.barbero.id %}"
+                                  class="slot-form">
+                                {% csrf_token %}
+                                <div class="slot-form-inner">
+                                    <input type="hidden" name="fecha_hora" value="{{ fecha_seleccionada }}T{{ slot|time:'H:i:s' }}">
+                                    
+                                    <button type="submit" class="slot-btn">
+                                        {{ slot|time:'H:i' }}
+                                    </button>
+                                    
+                                    <!-- Campo código de promoción (opcional) -->
+                                    <div class="promo-group">
+                                        <label style="font-size:12px;">Código Promo:</label>
+                                        <input type="text"
+                                               name="codigo_promocion"
+                                               placeholder="DESCUENTO10"
+                                               maxlength="30">
+                                        <small>Ingresa tu código si tienes uno</small>
+                                    </div>
+                                </div>
+                            </form>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>No disponible este día</p>
+                    <a class="slot-btn"
+                       style="background:#6c757d;"
+                       href="{% url 'scheduling:unirse_waitlist' info.barbero.id servicio.id %}">
+                       Unirse a lista de espera
+                    </a>
+                {% endif %}
             </div>
+        {% empty %}
+            <p>No hay barberos disponibles en esta sucursal.</p>
         {% endfor %}
-    {% endif %}
-    
-    <div style="margin-bottom: 20px;">
-        <a href="{% url 'scheduling:seleccionar_barberia' %}" class="btn btn-primary">+ Nueva Cita</a>
-        <a href="{% url 'panel_cliente' %}" class="btn">← Volver al Panel</a>
     </div>
 
-    {% if citas %}
-        <h2>Mis Citas</h2>
-        {% for cita in citas %}
-            <div class="cita-card">
-                <h3>{{ cita.servicio.nombre }}</h3>
-                <p><strong>📅 Fecha:</strong> {{ cita.fecha_hora|date:"d/m/Y" }}</p>
-                <p><strong>🕐 Hora:</strong> {{ cita.fecha_hora|date:"H:i" }}</p>
-                <p><strong>💈 Barbero:</strong> {{ cita.barbero.nombre }}</p>
-                <p><strong>📍 Sucursal:</strong> {{ cita.sucursal.nombre }}</p>
-                <p><strong>💰 Precio:</strong> ${{ cita.precio }}</p>
-                <p><strong>Estado:</strong> 
-                    <span class="estado {{ cita.estado }}">
-                        {{ cita.get_estado_display }}
-                    </span>
-                </p>
-                
-                {% if cita.notas %}
-                    <p><strong>Notas:</strong> {{ cita.notas }}</p>
-                {% endif %}
-                
-                <!-- Botones según estado -->
-                <div style="margin-top: 15px;">
-                    {% if cita.estado == 'pendiente' or cita.estado == 'confirmada' %}
-                        <!-- HU11: Botón Reprogramar -->
-                        {% if cita.puede_modificar and cita.reprogramado_count < 3 %}
-                            <a href="{% url 'scheduling:reprogramar_cita' cita.id %}" class="btn btn-warning">
-                                📅 Reprogramar ({{ cita.reprogramado_count }}/3)
-                            </a>
-                        {% endif %}
-                        
-                        <!-- Botón Cancelar -->
-                        <form method="post" action="{% url 'scheduling:cancelar_cita' cita.id %}" style="display: inline;">
-                            {% csrf_token %}
-                            <button type="submit" class="btn" style="background: #dc3545; color: white;"
-                                    onclick="return confirm('¿Estás seguro de cancelar esta cita?');">
-                                ✗ Cancelar Cita
-                            </button>
-                        </form>
-                    {% elif cita.estado == 'completada' %}
-                        {% if cita.valoracion %}
-                            <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px;">
-                                <span style="color: #ffc107; font-size: 1.2em;">
-                                    {% for i in "12345" %}
-                                        {% if forloop.counter <= cita.valoracion.puntuacion %}★{% else %}☆{% endif %}
-                                    {% endfor %}
-                                </span>
-                                {% if cita.valoracion.comentario %}
-                                    <p style="font-style: italic; color: #666; margin-top: 5px;">
-                                        "{{ cita.valoracion.comentario }}"
-                                    </p>
-                                {% endif %}
-                            </div>
-                        {% else %}
-                            <a href="{% url 'scheduling:valorar_cita' cita.id %}" class="btn btn-warning">
-                                ⭐ Valorar Servicio
-                            </a>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </div>
-        {% endfor %}
-    {% else %}
-        <div class="cita-card" style="text-align: center; padding: 40px;">
-            <h2>📅 No tienes citas programadas</h2>
-            <p>Agenda tu primera cita y disfruta de nuestros servicios</p>
-            <a href="{% url 'scheduling:seleccionar_barberia' %}" class="btn btn-primary" style="margin-top: 20px;">
-                Agendar Primera Cita
-            </a>
-        </div>
-    {% endif %}
+    <a href="{% url 'scheduling:seleccionar_servicio' sucursal.id %}" class="back-link">← Volver</a>
 </body>
 </html>

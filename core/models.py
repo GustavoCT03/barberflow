@@ -5,6 +5,9 @@ from django.conf import settings
 from django.utils import timezone
 import uuid
 from datetime import timedelta
+import re
+
+
 
 
 def get_expiration_date():
@@ -156,6 +159,7 @@ class Cliente(models.Model):
     telefono = models.CharField(max_length=16, validators=[phone_validator], blank=True, null=True)
     acepta_sms = models.BooleanField(default=False)
     acepta_email = models.BooleanField(default=True)
+    puntos = models.IntegerField(default=0)
 
     def __str__(self):
         return f"Cliente {self.user.nombre}"
@@ -406,7 +410,49 @@ class Licencia(models.Model):
         self.nosotros.save()
         self.save()
 
-
+class NotificacionEmail(models.Model):
+    """HU1: Registro de emails enviados para evitar duplicados"""
+    
+    class TipoNotificacion(models.TextChoices):
+        RECORDATORIO_CITA = "recordatorio_cita", "Recordatorio de Cita"
+        CONFIRMACION_CITA = "confirmacion_cita", "Confirmación de Cita"
+        CANCELACION_CITA = "cancelacion_cita", "Cancelación de Cita"
+        CITA_COMPLETADA = "cita_completada", "Cita Completada"
+        PROMOCION = "promocion", "Promoción"
+    
+    destinatario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notificaciones_recibidas"
+    )
+    cita = models.ForeignKey(
+        "scheduling.Cita",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notificaciones_enviadas"
+    )
+    tipo = models.CharField(
+        max_length=30,
+        choices=TipoNotificacion.choices,
+        default=TipoNotificacion.RECORDATORIO_CITA
+    )
+    asunto = models.CharField(max_length=200)
+    enviado_el = models.DateTimeField(auto_now_add=True, db_index=True)
+    exitoso = models.BooleanField(default=True)
+    error = models.TextField(blank=True, help_text="Mensaje de error si falla")
+    
+    class Meta:
+        ordering = ["-enviado_el"]
+        verbose_name = "Notificación Email"
+        verbose_name_plural = "Notificaciones Email"
+        indexes = [
+            models.Index(fields=["destinatario", "tipo", "enviado_el"]),
+            models.Index(fields=["cita", "tipo"]),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_tipo_display()} → {self.destinatario.email}"
 class LogActividad(models.Model):
     class TipoAccion(models.TextChoices):
         CREAR_BARBERIA = "crear_barberia", "Crear Barbería"
@@ -429,3 +475,27 @@ class LogActividad(models.Model):
 
     def __str__(self):
         return f"{self.timestamp} - {self.accion}"
+class DiaExcepcional(models.Model):
+    class TipoExcepcion(models.TextChoices):
+        CERRADO = 'cerrado', 'Cerrado'
+        HORARIO_ESPECIAL = 'horario_especial', 'Horario Especial'
+    
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='dias_excepcionales')
+    fecha = models.DateField()
+    tipo = models.CharField(max_length=20, choices=TipoExcepcion.choices)
+    
+    # Solo si es horario especial
+    hora_apertura = models.TimeField(null=True, blank=True)
+    hora_cierre = models.TimeField(null=True, blank=True)
+    
+    motivo = models.CharField(max_length=200, blank=True, help_text="Ej: Día festivo, evento privado")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'bf_dias_excepcionales'
+        unique_together = ['sucursal', 'fecha']
+        verbose_name = 'Día Excepcional'
+        verbose_name_plural = 'Días Excepcionales'
+    
+    def __str__(self):
+        return f"{self.sucursal.nombre} - {self.fecha} ({self.get_tipo_display()})"

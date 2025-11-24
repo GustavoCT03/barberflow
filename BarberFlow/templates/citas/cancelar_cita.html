@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Cancelar cita</h2>
+    <p class="text-muted">
+        Cliente: <strong>{{ cita.cliente.nombre }}</strong><br>
+        Fecha: {{ cita.fecha_hora }}
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <button class="btn btn-danger">Cancelar cita</button>
+        <a href="{% url 'listar_citas_admin' %}" class="btn btn-secondary">Volver</a>
+    </form>
+</div>
+{% endblock %}

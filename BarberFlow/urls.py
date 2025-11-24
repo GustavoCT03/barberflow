@@ -34,4 +34,7 @@ urlpatterns = [
     path('', include('accounts.urls')),
     path('panel/', include('dashboard.urls')), 
     path('citas/', include('scheduling.urls')),
+    path("panel/licencias/", include("licensing.urls")),
+    path("superadmin/", include("superadmin.urls")),
+
 ]

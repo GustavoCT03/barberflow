@@ -1,5 +1,6 @@
 import os
 from celery import Celery
+from celery.schedules import crontab
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "BarberFlow.settings")
 app = Celery("BarberFlow")
@@ -17,3 +18,10 @@ def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(300.0, enviar_recordatorios.s(), name="recordatorios_2h")
     # Cada 10 minutos: marcar no show (gracia 15 min)
     sender.add_periodic_task(600.0, marcar_no_show_citas.s(), name="marcar_no_show")
+    app.conf.beat_schedule = {
+    # ...existing tasks...
+    'recordatorios-24h': {
+        'task': 'scheduling.tasks.enviar_recordatorios_24h',
+        'schedule': crontab(minute='*/30'),  # Cada 30 min
+    },
+}
