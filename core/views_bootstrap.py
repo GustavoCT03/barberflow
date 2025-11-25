@@ -3,23 +3,29 @@ from django.utils import timezone
 import datetime
 
 from django.contrib.auth import get_user_model
-from core.models import Nosotros, Plan, Licencia, Barbero
-from scheduling.models import Sucursal
+from core.models import (
+    Nosotros, Barberia, Sucursal,
+    Barbero, Plan, Licencia
+)
 
 User = get_user_model()
 
 
 def bootstrap_init(request):
     """
-    Inicializa SuperAdmin, 3 barberías, 3 admins y 3 barberos.
-    Compatible con Render (base de datos vacía).
-    Segura y idempotente.
+    Bootstrap completo:
+    - SuperAdmin
+    - 3 Nosotros
+    - 1 Barberia por Nosotros
+    - 1 Sucursal por Barberia
+    - 1 Admin Barbería por Nosotros
+    - 1 Barbero por Nosotros
     """
     mensajes = []
 
-    # ---------------------------------------------------------
-    # 1) CREAR SUPERADMIN
-    # ---------------------------------------------------------
+    # ------------------------------
+    # 1. SUPERADMIN
+    # ------------------------------
     if not User.objects.filter(rol=User.Roles.SUPERADMIN).exists():
         User.objects.create_user(
             email="superadmin@barberflow.cl",
@@ -31,9 +37,9 @@ def bootstrap_init(request):
     else:
         mensajes.append("SuperAdmin ya existe")
 
-    # ---------------------------------------------------------
-    # 2) CREAR PLAN ILIMITADO (empresarial mensual)
-    # ---------------------------------------------------------
+    # ------------------------------
+    # 2. PLAN ILIMITADO
+    # ------------------------------
     if not Plan.objects.exists():
         plan = Plan.objects.create(
             nombre="empresarial",
@@ -48,98 +54,93 @@ def bootstrap_init(request):
         plan = Plan.objects.first()
         mensajes.append("Plan ya existe")
 
-    # ---------------------------------------------------------
-    # 3) CREAR HASTA 3 BARBERÍAS
-    # ---------------------------------------------------------
-    nombres = ["Barbería Alpha", "Barbería Bravo", "Barbería Charlie"]
-    barberias_creadas = []
+    # ------------------------------
+    # 3. CREAR 3 NOSOTROS
+    # ------------------------------
+    nombres = ["Alpha", "Bravo", "Charlie"]
+    instancias_nosotros = []
 
-    existentes = list(Nosotros.objects.all())
-    if len(existentes) < 3:
-        for nombre in nombres:
-            b, _ = Nosotros.objects.get_or_create(
-                nombre=nombre,
-                defaults={"activo": True}
-            )
-            barberias_creadas.append(b)
-        mensajes.append("✔ 3 Barberías creadas")
+    if Nosotros.objects.count() < 3:
+        for n in nombres:
+            inst = Nosotros.objects.create(nombre=f"Barbería {n}", activo=True)
+            instancias_nosotros.append(inst)
+        mensajes.append("✔ 3 barberías (Nosotros) creadas")
     else:
-        barberias_creadas = existentes[:3]
-        mensajes.append("Barberías ya estaban creadas")
+        instancias_nosotros = list(Nosotros.objects.all()[:3])
+        mensajes.append("Ya existen barberías")
 
-    # ---------------------------------------------------------
-    # 4) CREAR LICENCIAS PARA CADA BARBERÍA
-    # ---------------------------------------------------------
-    for barberia in barberias_creadas:
-        if not hasattr(barberia, "licencia"):
+    # ------------------------------
+    # 4. LICENCIA + BARBERIA + SUCURSAL + ADMIN + BARBERO
+    # ------------------------------
+    for idx, nos in enumerate(instancias_nosotros, start=1):
+
+        # LICENCIA
+        if not hasattr(nos, "licencia"):
             Licencia.objects.create(
-                nosotros=barberia,
+                nosotros=nos,
                 plan=plan,
                 fecha_inicio=timezone.now().date(),
                 fecha_expiracion=timezone.now().date() + datetime.timedelta(days=3650),
                 activa=True,
             )
-            mensajes.append(f"✔ Licencia creada para {barberia.nombre}")
+            mensajes.append(f"✔ Licencia creada para {nos.nombre}")
         else:
-            mensajes.append(f"Licencia ya existe para {barberia.nombre}")
+            mensajes.append(f"Licencia ya existe para {nos.nombre}")
 
-    # ---------------------------------------------------------
-    # 5) CREAR ADMIN + BARBERO PARA CADA BARBERÍA
-    # ---------------------------------------------------------
-    for index, barberia in enumerate(barberias_creadas, start=1):
+        # BARBERIA REAL
+        barberia, _ = Barberia.objects.get_or_create(
+            nosotros=nos,
+            nombre=f"{nos.nombre} - Central"
+        )
 
-        # --- ADMIN BARBERÍA ---
-        email_admin = f"admin{index}@barberflow.cl"
-        if not User.objects.filter(email=email_admin).exists():
-            admin = User.objects.create_user(
-                email=email_admin,
-                password="admin123",
-                nombre=f"Admin {barberia.nombre}",
-                rol=User.Roles.ADMIN_BARBERIA
-            )
-            admin.nosotros = barberia
-            admin.save()
-            mensajes.append(f"✔ Admin creado para {barberia.nombre}")
-        else:
-            mensajes.append(f"Admin ya existe para {barberia.nombre}")
-
-        # --- SUCURSAL PRINCIPAL ---
+        # SUCURSAL
         sucursal, _ = Sucursal.objects.get_or_create(
             barberia=barberia,
             nombre="Sucursal Principal",
             defaults={"direccion": "Dirección pendiente"}
         )
 
-        # --- BARBERO ---
-        email_barbero = f"barbero{index}@barberflow.cl"
+        # ADMIN BARBERÍA
+        email_admin = f"admin{idx}@barberflow.cl"
+        if not User.objects.filter(email=email_admin).exists():
+            admin = User.objects.create_user(
+                email=email_admin,
+                password="admin123",
+                nombre=f"Admin {nos.nombre}",
+                rol=User.Roles.ADMIN_BARBERIA
+            )
+            admin.nosotros = nos
+            admin.save()
+            mensajes.append(f"✔ Admin creado para {nos.nombre}")
+        else:
+            mensajes.append(f"Admin ya existe para {nos.nombre}")
+
+        # BARBERO
+        email_barbero = f"barbero{idx}@barberflow.cl"
         if not User.objects.filter(email=email_barbero).exists():
-            u_barbero = User.objects.create_user(
+            ub = User.objects.create_user(
                 email=email_barbero,
                 password="admin123",
-                nombre=f"Barbero {barberia.nombre}",
+                nombre=f"Barbero {nos.nombre}",
                 rol=User.Roles.BARBERO
             )
-
-            Barbero.objects.get_or_create(
-                user=u_barbero,
-                defaults={
-                    "nombre": u_barbero.nombre,
-                    "nosotros": barberia,
-                    "activo": True
-                }
+            Barbero.objects.create(
+                user=ub,
+                nombre=ub.nombre,
+                nosotros=nos,
+                sucursal_principal=sucursal,
+                activo=True
             )
-
-            mensajes.append(f"✔ Barbero creado para {barberia.nombre}")
+            mensajes.append(f"✔ Barbero creado para {nos.nombre}")
         else:
-            mensajes.append(f"Barbero ya existe para {barberia.nombre}")
+            mensajes.append(f"Barbero ya existe para {nos.nombre}")
 
-    # ---------------------------------------------------------
-    # 6) RESPUESTA EN HTML
-    # ---------------------------------------------------------
+    # ------------------------------
+    # 5. Página de respuesta
+    # ------------------------------
     html = "<h2>Bootstrap Ejecutado</h2><ul>"
     for m in mensajes:
         html += f"<li>{m}</li>"
     html += "</ul>"
 
     return HttpResponse(html)
-
