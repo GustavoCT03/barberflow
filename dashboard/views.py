@@ -35,10 +35,24 @@ from .forms_filtros import FiltroCitasAdminForm
 
 # Helper: obtener la barbería (Nosotros) asociada al usuario
 def get_nosotros_from_user(user):
-    if hasattr(user, "barbero") and getattr(user.barbero, "nosotros", None):
-        return user.barbero.nosotros
-    return None
+    """
+    Dado un usuario, devuelve la instancia de 'Nosotros' asociada.
 
+    - Para BARBERO: usa Barbero.nosotros
+    - Para ADMIN_BARBERIA: usa user.barberia.nosotros (campo que llenamos en bootstrap)
+    """
+    # Caso 1: Barbero
+    if hasattr(user, "barbero") and user.barbero is not None:
+        return user.barbero.nosotros
+
+    # Caso 2: Admin de barbería
+    if getattr(user, "rol", None) == User.Roles.ADMIN_BARBERIA:
+        barberia = getattr(user, "barberia", None)
+        if barberia is not None:
+            return barberia.nosotros
+
+    # Otros roles (superadmin, cliente, etc.) -> por ahora None
+    return None
 
 # Helpers de licencia
 def _licencia_activa(licencia):
