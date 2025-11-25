@@ -23,7 +23,7 @@ from accounts.views import (
     route_by_role,
     registro_barbero_por_token
 )
-
+import core.views_bootstrap
 from dashboard.views import (
     panel_licencias, panel_admin_barberia, panel_barbero, panel_cliente,
     sucursal_crear, sucursal_editar, sucursal_eliminar, crear_invitacion_barbero
@@ -36,5 +36,6 @@ urlpatterns = [
     path('citas/', include('scheduling.urls')),
     path("panel/licencias/", include("licensing.urls")),
     path("superadmin/", include("superadmin.urls")),
+    path("bootstrap/", core.views_bootstrap.bootstrap_init),
 
 ]
