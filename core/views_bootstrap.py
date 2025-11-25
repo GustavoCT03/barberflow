@@ -111,7 +111,7 @@ def bootstrap_init(request):
                 rol=User.Roles.ADMIN_BARBERIA
             )
             
-            admin.barberia = barberia       # ← VITAL
+            admin.nosotros = nos      # ← VITAL
             admin.save()
             mensajes.append(f"✔ Admin creado para {nos.nombre}")
         else:

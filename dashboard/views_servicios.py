@@ -7,9 +7,20 @@ from .forms_servicios import ServicioForm
 
 
 def get_nosotros_from_user(user):
-    """Helper para obtener la barbería del usuario admin"""
-    if hasattr(user, "barbero") and getattr(user.barbero, "nosotros", None):
-        return user.barbero.nosotros
+    """
+    Retorna el objeto Nosotros asociado al usuario, tanto para ADMIN_BARBERIA
+    como para BARBERO.
+    """
+
+    # Caso administrador de barbería
+    if user.rol == User.Roles.ADMIN_BARBERIA:
+        return getattr(user, "nosotros", None)
+
+    # Caso barbero
+    if user.rol == User.Roles.BARBERO:
+        if hasattr(user, "barbero"):
+            return user.barbero.nosotros
+
     return None
 
 
