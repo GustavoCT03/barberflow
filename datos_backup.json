@@ -143,7 +143,7 @@
     "last_login": "2025-11-24T23:33:38.147Z",
     "is_superuser": false,
     "email": "barbero@barberflow.com",
-    "nombre": "Juan Pérez",
+    "nombre": "Juan Pï¿½rez",
     "rol": "barbero",
     "puntos_fidelidad": {},
     "is_active": true,
@@ -161,7 +161,7 @@
     "last_login": "2025-11-24T23:32:27.628Z",
     "is_superuser": false,
     "email": "cliente@test.com",
-    "nombre": "María González",
+    "nombre": "Marï¿½a Gonzï¿½lez",
     "rol": "cliente",
     "puntos_fidelidad": {},
     "is_active": true,
@@ -375,8 +375,8 @@
   "pk": 1,
   "fields": {
     "nosotros": 1,
-    "nombre": "Barbería Centro",
-    "descripcion": "La mejor barbería del centro",
+    "nombre": "Barberï¿½a Centro",
+    "descripcion": "La mejor barberï¿½a del centro",
     "activa": true,
     "creado": "2025-11-20T04:03:09.438Z"
   }
@@ -399,7 +399,7 @@
   "fields": {
     "nosotros": 1,
     "user": 5,
-    "nombre": "Juan Pérez",
+    "nombre": "Juan Pï¿½rez",
     "sucursal_principal": 1,
     "activo": true,
     "creado": "2025-11-20T04:03:09.732Z"
@@ -423,7 +423,7 @@
   "fields": {
     "barberia": 1,
     "nombre": "Corte de Cabello",
-    "descripcion": "Corte clásico o moderno",
+    "descripcion": "Corte clï¿½sico o moderno",
     "duracion_minutos": 30,
     "precio": "10000.00",
     "activo": true,
