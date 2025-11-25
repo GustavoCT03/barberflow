@@ -52,6 +52,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, db_index=True)
     nombre = models.CharField(max_length=150)
     rol = models.CharField(max_length=20, choices=Roles.choices, default=Roles.CLIENTE, db_index=True)
+    barberia = models.ForeignKey(
+    'Barberia',
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name='usuarios'
+)
     puntos_fidelidad = models.JSONField(default=dict, blank=True, help_text="{'barberia_id': puntos}")
     
     is_active = models.BooleanField(default=True)

@@ -13,14 +13,15 @@ User = get_user_model()
 
 def bootstrap_init(request):
     """
-    Bootstrap completo:
+    Inicializa la plataforma completa:
     - SuperAdmin
-    - 3 Nosotros
-    - 1 Barberia por Nosotros
+    - 3 Nosotros (Alpha, Bravo, Charlie)
+    - 1 Barberia por cada Nosotros
     - 1 Sucursal por Barberia
-    - 1 Admin Barbería por Nosotros
+    - 1 Admin Barberia por Nosotros
     - 1 Barbero por Nosotros
     """
+
     mensajes = []
 
     # ------------------------------
@@ -38,7 +39,7 @@ def bootstrap_init(request):
         mensajes.append("SuperAdmin ya existe")
 
     # ------------------------------
-    # 2. PLAN ILIMITADO
+    # 2. PLAN EMPRESARIAL
     # ------------------------------
     if not Plan.objects.exists():
         plan = Plan.objects.create(
@@ -55,22 +56,22 @@ def bootstrap_init(request):
         mensajes.append("Plan ya existe")
 
     # ------------------------------
-    # 3. CREAR 3 NOSOTROS
+    # 3. CREAR LOS 3 NOSOTROS
     # ------------------------------
     nombres = ["Alpha", "Bravo", "Charlie"]
     instancias_nosotros = []
 
     if Nosotros.objects.count() < 3:
         for n in nombres:
-            inst = Nosotros.objects.create(nombre=f"Barbería {n}", activo=True)
+            inst = Nosotros.objects.create(nombre=f"Barberia {n}", activo=True)
             instancias_nosotros.append(inst)
-        mensajes.append("✔ 3 barberías (Nosotros) creadas")
+        mensajes.append("✔ 3 entradas Nosotros creadas")
     else:
         instancias_nosotros = list(Nosotros.objects.all()[:3])
-        mensajes.append("Ya existen barberías")
+        mensajes.append("Ya existen entradas Nosotros")
 
     # ------------------------------
-    # 4. LICENCIA + BARBERIA + SUCURSAL + ADMIN + BARBERO
+    # 4. CREAR BARBERIA + SUCURSAL + ADMIN + BARBERO
     # ------------------------------
     for idx, nos in enumerate(instancias_nosotros, start=1):
 
@@ -87,20 +88,20 @@ def bootstrap_init(request):
         else:
             mensajes.append(f"Licencia ya existe para {nos.nombre}")
 
-        # BARBERIA REAL
+        # BARBERIA
         barberia, _ = Barberia.objects.get_or_create(
             nosotros=nos,
-            nombre=f"{nos.nombre} - Central"
+            nombre=f"{nos.nombre} Central"
         )
 
-        # SUCURSAL
+        # SUCURSAL PRINCIPAL
         sucursal, _ = Sucursal.objects.get_or_create(
             barberia=barberia,
             nombre="Sucursal Principal",
-            defaults={"direccion": "Dirección pendiente"}
+            defaults={"direccion": "Direccion pendiente"}
         )
 
-        # ADMIN BARBERÍA
+        # ADMIN BARBERIA
         email_admin = f"admin{idx}@barberflow.cl"
         if not User.objects.filter(email=email_admin).exists():
             admin = User.objects.create_user(
@@ -110,6 +111,7 @@ def bootstrap_init(request):
                 rol=User.Roles.ADMIN_BARBERIA
             )
             admin.nosotros = nos
+            admin.barberia = barberia       # ← VITAL
             admin.save()
             mensajes.append(f"✔ Admin creado para {nos.nombre}")
         else:
@@ -124,6 +126,7 @@ def bootstrap_init(request):
                 nombre=f"Barbero {nos.nombre}",
                 rol=User.Roles.BARBERO
             )
+
             Barbero.objects.create(
                 user=ub,
                 nombre=ub.nombre,
@@ -131,12 +134,13 @@ def bootstrap_init(request):
                 sucursal_principal=sucursal,
                 activo=True
             )
+
             mensajes.append(f"✔ Barbero creado para {nos.nombre}")
         else:
             mensajes.append(f"Barbero ya existe para {nos.nombre}")
 
     # ------------------------------
-    # 5. Página de respuesta
+    # 5. RESPUESTA HTML
     # ------------------------------
     html = "<h2>Bootstrap Ejecutado</h2><ul>"
     for m in mensajes:
