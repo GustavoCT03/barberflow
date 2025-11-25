@@ -110,7 +110,7 @@ def bootstrap_init(request):
                 nombre=f"Admin {nos.nombre}",
                 rol=User.Roles.ADMIN_BARBERIA
             )
-            admin.nosotros = nos
+            
             admin.barberia = barberia       # ← VITAL
             admin.save()
             mensajes.append(f"✔ Admin creado para {nos.nombre}")
@@ -134,6 +134,8 @@ def bootstrap_init(request):
                 sucursal_principal=sucursal,
                 activo=True
             )
+            ub.barberia = barberia
+            ub.save()
 
             mensajes.append(f"✔ Barbero creado para {nos.nombre}")
         else:
