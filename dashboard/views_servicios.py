@@ -8,17 +8,19 @@ from .forms_servicios import ServicioForm
 
 def get_nosotros_from_user(user):
     """
-    Retorna el objeto Nosotros asociado al usuario, tanto para ADMIN_BARBERIA
-    como para BARBERO.
+    Retorna el objeto Nosotros asociado al usuario,
+    tanto para ADMIN_BARBERIA como para BARBERO.
     """
 
-    # Caso administrador de barbería
+    # Caso administrador → obtiene la barbería mediante user.barberia
     if user.rol == User.Roles.ADMIN_BARBERIA:
-        return getattr(user, "nosotros", None)
+        if hasattr(user, "barberia") and user.barberia is not None:
+            return user.barberia.nosotros
+        return None
 
-    # Caso barbero
+    # Caso barbero → usa la relación barbero.nosotros
     if user.rol == User.Roles.BARBERO:
-        if hasattr(user, "barbero"):
+        if hasattr(user, "barbero") and user.barbero.nosotros:
             return user.barbero.nosotros
 
     return None
